@@ -243,6 +243,15 @@ export class App {
       const panel = this.state.panels['service-status'] as ServiceStatusPanel | undefined;
       if (panel) primeTask('service-status', () => panel.fetchStatus());
     }
+    // Null Fellows custom panels — always prime (they're above the map)
+    {
+      const portfolio = this.state.panels['portfolio'];
+      if (portfolio && 'fetchData' in portfolio) primeTask('portfolio', () => (portfolio as any).fetchData());
+      const allocator = this.state.panels['auto-allocator'];
+      if (allocator && 'fetchData' in allocator) primeTask('auto-allocator', () => (allocator as any).fetchData());
+      const riskDash = this.state.panels['risk-dashboard'];
+      if (riskDash && 'fetchData' in riskDash) primeTask('risk-dashboard', () => (riskDash as any).fetchData());
+    }
     if (shouldPrime('macro-signals')) {
       const panel = this.state.panels['macro-signals'] as MacroSignalsPanel | undefined;
       if (panel) primeTask('macro-signals', () => panel.fetchData());
