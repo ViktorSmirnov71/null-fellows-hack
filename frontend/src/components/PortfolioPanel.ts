@@ -6,13 +6,17 @@ interface Position {
   name: string;
   weight: number;
   value: number;
+  price: number;
+  shares: number;
   assetClass: string;
   color: string;
   dailyChange: number;
+  changePct: number;
 }
 
 interface PortfolioState {
   totalValue: number;
+  dataSource: string;
   positions: Position[];
   riskScore: number;
   lastRebalance: string;
@@ -29,19 +33,19 @@ const ASSET_CLASS_COLORS: Record<string, string> = {
 
 function defaultPositions(): Position[] {
   return [
-    { ticker: 'SPY',  name: 'S&P 500 ETF',           weight: 0.20, value: 2000, assetClass: 'Equity',           color: '#3498db', dailyChange: 12.40 },
-    { ticker: 'VTI',  name: 'Total Stock Market',     weight: 0.10, value: 1000, assetClass: 'Equity',           color: '#2980b9', dailyChange: 5.80 },
-    { ticker: 'DBMF', name: 'Managed Futures',        weight: 0.10, value: 1000, assetClass: 'Managed Futures',  color: '#9b59b6', dailyChange: -3.20 },
-    { ticker: 'KMLM', name: 'Mount Lucas Futures',    weight: 0.05, value: 500,  assetClass: 'Managed Futures',  color: '#8e44ad', dailyChange: 1.10 },
-    { ticker: 'RPAR', name: 'Risk Parity',            weight: 0.05, value: 500,  assetClass: 'Managed Futures',  color: '#7d3c98', dailyChange: -0.50 },
-    { ticker: 'JAAA', name: 'AAA CLO ETF',            weight: 0.10, value: 1000, assetClass: 'Structured Credit',color: '#1abc9c', dailyChange: 0.80 },
-    { ticker: 'CLOA', name: 'iShares AAA CLO',        weight: 0.05, value: 500,  assetClass: 'Structured Credit',color: '#16a085', dailyChange: 0.40 },
-    { ticker: 'ARCC', name: 'Ares Capital',           weight: 0.08, value: 800,  assetClass: 'Private Credit',   color: '#e67e22', dailyChange: 2.30 },
-    { ticker: 'BXSL', name: 'Blackstone Lending',     weight: 0.07, value: 700,  assetClass: 'Private Credit',   color: '#d35400', dailyChange: 1.90 },
-    { ticker: 'GLDM', name: 'Gold MiniShares',        weight: 0.05, value: 500,  assetClass: 'Real Assets',      color: '#f1c40f', dailyChange: 4.20 },
-    { ticker: 'PDBC', name: 'Diversified Commodity',  weight: 0.05, value: 500,  assetClass: 'Real Assets',      color: '#f39c12', dailyChange: -1.80 },
-    { ticker: 'AGG',  name: 'US Aggregate Bond',      weight: 0.05, value: 500,  assetClass: 'Fixed Income',     color: '#95a5a6', dailyChange: 0.30 },
-    { ticker: 'SRLN', name: 'Senior Loan ETF',        weight: 0.05, value: 500,  assetClass: 'Fixed Income',     color: '#7f8c8d', dailyChange: 0.60 },
+    { ticker: 'SPY',  name: 'S&P 500 ETF',           weight: 0.20, value: 2000, price: 0, shares: 0, assetClass: 'Equity',           color: '#3498db', dailyChange: 0, changePct: 0 },
+    { ticker: 'VTI',  name: 'Total Stock Market',     weight: 0.10, value: 1000, price: 0, shares: 0, assetClass: 'Equity',           color: '#2980b9', dailyChange: 0, changePct: 0 },
+    { ticker: 'DBMF', name: 'Managed Futures',        weight: 0.10, value: 1000, price: 0, shares: 0, assetClass: 'Managed Futures',  color: '#9b59b6', dailyChange: 0, changePct: 0 },
+    { ticker: 'KMLM', name: 'Mount Lucas Futures',    weight: 0.05, value: 500,  price: 0, shares: 0, assetClass: 'Managed Futures',  color: '#8e44ad', dailyChange: 0, changePct: 0 },
+    { ticker: 'RPAR', name: 'Risk Parity',            weight: 0.05, value: 500,  price: 0, shares: 0, assetClass: 'Managed Futures',  color: '#7d3c98', dailyChange: 0, changePct: 0 },
+    { ticker: 'JAAA', name: 'AAA CLO ETF',            weight: 0.10, value: 1000, price: 0, shares: 0, assetClass: 'Structured Credit',color: '#1abc9c', dailyChange: 0, changePct: 0 },
+    { ticker: 'CLOA', name: 'iShares AAA CLO',        weight: 0.05, value: 500,  price: 0, shares: 0, assetClass: 'Structured Credit',color: '#16a085', dailyChange: 0, changePct: 0 },
+    { ticker: 'ARCC', name: 'Ares Capital',           weight: 0.08, value: 800,  price: 0, shares: 0, assetClass: 'Private Credit',   color: '#e67e22', dailyChange: 0, changePct: 0 },
+    { ticker: 'BXSL', name: 'Blackstone Lending',     weight: 0.07, value: 700,  price: 0, shares: 0, assetClass: 'Private Credit',   color: '#d35400', dailyChange: 0, changePct: 0 },
+    { ticker: 'GLDM', name: 'Gold MiniShares',        weight: 0.05, value: 500,  price: 0, shares: 0, assetClass: 'Real Assets',      color: '#f1c40f', dailyChange: 0, changePct: 0 },
+    { ticker: 'PDBC', name: 'Diversified Commodity',  weight: 0.05, value: 500,  price: 0, shares: 0, assetClass: 'Real Assets',      color: '#f39c12', dailyChange: 0, changePct: 0 },
+    { ticker: 'AGG',  name: 'US Aggregate Bond',      weight: 0.05, value: 500,  price: 0, shares: 0, assetClass: 'Fixed Income',     color: '#95a5a6', dailyChange: 0, changePct: 0 },
+    { ticker: 'SRLN', name: 'Senior Loan ETF',        weight: 0.05, value: 500,  price: 0, shares: 0, assetClass: 'Fixed Income',     color: '#7f8c8d', dailyChange: 0, changePct: 0 },
   ];
 }
 
@@ -76,6 +80,7 @@ export class PortfolioPanel extends Panel {
     });
     this.state = {
       totalValue: 10000,
+      dataSource: 'demo',
       positions: defaultPositions(),
       riskScore: 0.42,
       lastRebalance: '2026-03-25',
@@ -92,14 +97,18 @@ export class PortfolioPanel extends Panel {
         if (data.positions?.length > 0) {
           this.state.totalValue = data.totalValue;
           this.state.lastRebalance = data.lastRebalance;
+          this.state.dataSource = data.dataSource || 'demo';
           this.state.positions = data.positions.map((p: any) => ({
             ticker: p.ticker,
             name: p.name,
             weight: p.weight,
             value: p.value,
+            price: p.price || 0,
+            shares: p.shares || 0,
             assetClass: p.assetClass,
             color: p.color,
             dailyChange: p.dailyChange,
+            changePct: p.changePct || 0,
           }));
           isLive = true;
           console.log('[Portfolio] Live data loaded:', data.positions.length, 'positions');
@@ -134,7 +143,8 @@ export class PortfolioPanel extends Panel {
   private render(): void {
     const d = this.state;
     const dailyTotal = d.positions.reduce((s, p) => s + p.dailyChange, 0);
-    const dailyPct = (dailyTotal / d.totalValue) * 100;
+    // Weighted average daily change %
+    const dailyPct = d.positions.reduce((s, p) => s + p.changePct * p.weight, 0);
 
     // Group by asset class
     const classMap = new Map<string, { color: string; weight: number; value: number }>();
@@ -156,16 +166,18 @@ export class PortfolioPanel extends Panel {
     const posRows = d.positions.map(p => `
       <div class="nf-pos-row" style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
         <div style="width:6px;height:6px;border-radius:50%;background:${p.color};flex-shrink:0"></div>
-        <div style="min-width:42px">
+        <div style="min-width:70px">
           <div style="font-size:12px;font-weight:600;color:var(--text)">${escapeHtml(p.ticker)}</div>
-          <div style="font-size:9px;color:var(--text-muted)">${escapeHtml(p.name)}</div>
+          <div style="font-size:9px;color:var(--text-muted)">${p.price > 0 ? `$${p.price.toFixed(2)}` : escapeHtml(p.name)}</div>
         </div>
         <input type="range" min="1" max="40" step="1" value="${Math.round(p.weight * 100)}"
           data-ticker="${p.ticker}"
           style="flex:1;height:4px;accent-color:${p.color};cursor:pointer" />
-        <div style="text-align:right;min-width:58px">
-          <div style="font-size:11px;font-weight:600;color:var(--text)">${(p.weight * 100).toFixed(0)}%</div>
-          <div style="font-size:10px;color:${chgColor(p.dailyChange)}">${chgSign(p.dailyChange)}$${Math.abs(p.dailyChange).toFixed(2)}</div>
+        <div style="text-align:right;min-width:80px">
+          <div style="font-size:11px;font-weight:600;color:var(--text)">${(p.weight * 100).toFixed(0)}% &middot; $${p.value.toLocaleString()}</div>
+          <div style="font-size:10px;color:${chgColor(p.changePct)}">
+            ${chgSign(p.changePct)}${Math.abs(p.changePct).toFixed(2)}%${p.shares > 0 ? ` &middot; ${p.shares.toFixed(1)} shr` : ''}
+          </div>
         </div>
       </div>`).join('');
 
@@ -191,7 +203,7 @@ export class PortfolioPanel extends Panel {
       <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Allocations — drag to adjust</div>
       <div style="max-height:300px;overflow-y:auto" id="nf-pos-list">${posRows}</div>
       <div style="margin-top:8px;padding:5px;text-align:center;background:rgba(52,152,219,0.08);border:1px solid rgba(52,152,219,0.15);border-radius:4px">
-        <span style="font-size:10px;color:#3498db;font-weight:500">DEMO &middot; $50K income &middot; $10K invested</span>
+        <span style="font-size:10px;color:#3498db;font-weight:500">${d.dataSource === 'demo' ? 'DEMO DATA' : 'LIVE'} &middot; $10K invested &middot; ${d.dataSource !== 'demo' ? 'Yahoo Finance' : 'API offline'}</span>
       </div>`;
 
     // Wire up sliders

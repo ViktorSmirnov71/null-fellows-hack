@@ -63,32 +63,45 @@ _gdelt_cache_time: float = 0
 GDELT_CACHE_TTL = 600
 
 
-def _get_prices() -> dict[str, float]:
+def _get_prices() -> dict[str, dict]:
+    """Returns {ticker: {"price": float, "prev_close": float, "change_pct": float}}"""
     global _price_cache, _price_cache_time
     if time.time() - _price_cache_time < PRICE_CACHE_TTL and _price_cache:
         return _price_cache
-    prices = {}
+    result = {}
     tickers = list(UNIVERSE.keys())
     try:
-        data = yf.download(tickers, period="2d", auto_adjust=True, progress=False, threads=True)
+        data = yf.download(tickers, period="5d", auto_adjust=True, progress=False, threads=True)
         closes = data["Close"]
         for ticker in tickers:
             try:
-                prices[ticker] = round(float(closes[ticker].iloc[-1]), 2)
+                col = closes[ticker].dropna()
+                if len(col) >= 2:
+                    price = round(float(col.iloc[-1]), 2)
+                    prev = round(float(col.iloc[-2]), 2)
+                    change_pct = round(((price - prev) / prev) * 100, 2) if prev else 0
+                    result[ticker] = {"price": price, "prev_close": prev, "change_pct": change_pct}
+                elif len(col) == 1:
+                    result[ticker] = {"price": round(float(col.iloc[-1]), 2), "prev_close": 0, "change_pct": 0}
+                else:
+                    result[ticker] = {"price": 0, "prev_close": 0, "change_pct": 0}
             except Exception:
-                prices[ticker] = 0
+                result[ticker] = {"price": 0, "prev_close": 0, "change_pct": 0}
     except Exception:
-        # Fallback to individual fetches
         for ticker in tickers:
             try:
-                prices[ticker] = round(float(yf.Ticker(ticker).fast_info.get("lastPrice", 0)), 2)
+                t = yf.Ticker(ticker)
+                price = round(float(t.fast_info.get("lastPrice", 0)), 2)
+                prev = round(float(t.fast_info.get("previousClose", 0)), 2)
+                change_pct = round(((price - prev) / prev) * 100, 2) if prev else 0
+                result[ticker] = {"price": price, "prev_close": prev, "change_pct": change_pct}
             except Exception:
-                prices[ticker] = 0
+                result[ticker] = {"price": 0, "prev_close": 0, "change_pct": 0}
             time.sleep(0.3)
-    if prices:
-        _price_cache = prices
+    if result:
+        _price_cache = result
         _price_cache_time = time.time()
-    return prices
+    return result
 
 
 def _get_gdelt_signal() -> dict:
@@ -157,17 +170,18 @@ def _get_fred_value(series_id: str) -> float | None:
 
 @app.get("/api/portfolio")
 def get_portfolio():
-    """Live portfolio positions with current prices."""
-    prices = _get_prices()
+    """Live portfolio positions with real prices and daily changes from Yahoo Finance."""
+    price_data = _get_prices()
     positions = []
+    total_daily_change = 0
     for ticker, info in UNIVERSE.items():
-        price = prices.get(ticker, 0)
+        pd = price_data.get(ticker, {"price": 0, "prev_close": 0, "change_pct": 0})
+        price = pd["price"]
+        change_pct = pd["change_pct"]
         value = round(TOTAL_INVESTMENT * info["weight"])
         shares = round(value / price, 4) if price > 0 else 0
-        # Simulate daily change as % of price (small random-ish based on ticker hash)
-        seed = hash(ticker + datetime.now(timezone.utc).strftime("%Y-%m-%d")) % 1000
-        daily_pct = (seed - 500) / 5000  # roughly -10% to +10% range / 100
-        daily_change = round(value * daily_pct, 2)
+        daily_change = round(value * change_pct / 100, 2)
+        total_daily_change += daily_change
         positions.append({
             "ticker": ticker,
             "name": info["name"],
@@ -178,11 +192,15 @@ def get_portfolio():
             "assetClass": info["class"],
             "color": info["color"],
             "dailyChange": daily_change,
+            "changePct": change_pct,
         })
     return {
         "totalValue": TOTAL_INVESTMENT,
+        "totalDailyChange": round(total_daily_change, 2),
+        "totalDailyChangePct": round((total_daily_change / TOTAL_INVESTMENT) * 100, 2),
         "positions": positions,
         "lastRebalance": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "dataSource": "Yahoo Finance (live)",
     }
 
 
