@@ -2,7 +2,7 @@
   "name": "parallax-intelligence",
   "private": true,
   "version": "2.6.5",
-  "license": "AGPL-3.0-only",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "lint": "biome lint ./src ./server ./api ./tests ./e2e ./scripts ./middleware.ts",
