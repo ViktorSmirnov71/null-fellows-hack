@@ -179,7 +179,7 @@ export class PanelLayoutManager implements AppModule {
 
   private async fetchGitHubStars(): Promise<void> {
     try {
-      const response = await fetch('https://api.github.com/repos/koala73/worldmonitor');
+      const response = await fetch('https://api.github.com/repos/ViktorSmirnov71/null-fellows-hack');
       if (!response.ok) return;
       const data = await response.json();
       const starsEl = document.getElementById('githubStars');

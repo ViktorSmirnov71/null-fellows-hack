@@ -18,7 +18,7 @@ import {
   type AnalysisPanelId,
 } from '@/services/analysis-framework-store';
 
-const DESKTOP_RELEASES_URL = 'https://github.com/koala73/worldmonitor/releases';
+const DESKTOP_RELEASES_URL = '';
 
 export interface PreferencesHost {
   isDesktopApp: boolean;
@@ -324,7 +324,7 @@ export function renderPreferences(host: PreferencesHost): PreferencesResult {
     </div>
     <div class="us-data-mgmt-toast" id="usDataMgmtToast"></div>
   `;
-  html += `<a href="https://discord.gg/re63kWKxaz" target="_blank" rel="noopener noreferrer" class="us-discussion-link">
+  html += `<a href="#" class="us-discussion-link" style="display:none">
     <span class="us-discussion-dot"></span>
     <span>${t('components.community.joinDiscussion')}</span>
   </a>`;
