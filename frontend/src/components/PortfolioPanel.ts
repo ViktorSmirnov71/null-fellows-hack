@@ -83,28 +83,33 @@ export class PortfolioPanel extends Panel {
   }
 
   public async fetchData(): Promise<boolean> {
+    this.showLoading('Fetching live prices...');
+    let isLive = false;
     try {
       const resp = await fetch('http://localhost:8000/api/portfolio');
       if (resp.ok) {
         const data = await resp.json();
-        this.state.totalValue = data.totalValue;
-        this.state.lastRebalance = data.lastRebalance;
-        this.state.positions = data.positions.map((p: any) => ({
-          ticker: p.ticker,
-          name: p.name,
-          weight: p.weight,
-          value: p.value,
-          assetClass: p.assetClass,
-          color: p.color,
-          dailyChange: p.dailyChange,
-        }));
-        this.setDataBadge('live');
+        if (data.positions?.length > 0) {
+          this.state.totalValue = data.totalValue;
+          this.state.lastRebalance = data.lastRebalance;
+          this.state.positions = data.positions.map((p: any) => ({
+            ticker: p.ticker,
+            name: p.name,
+            weight: p.weight,
+            value: p.value,
+            assetClass: p.assetClass,
+            color: p.color,
+            dailyChange: p.dailyChange,
+          }));
+          isLive = true;
+          console.log('[Portfolio] Live data loaded:', data.positions.length, 'positions');
+        }
       }
-    } catch {
-      // API unavailable — use demo data
-      this.setDataBadge('cached');
+    } catch (e) {
+      console.warn('[Portfolio] API unavailable, using demo data:', e);
     }
     this.render();
+    this.setDataBadge(isLive ? 'live' : 'cached');
     return true;
   }
 

@@ -98,6 +98,8 @@ export class RiskDashboardPanel extends Panel {
   }
 
   public async fetchData(): Promise<boolean> {
+    this.showLoading('Computing world risk score...');
+    let isLive = false;
     try {
       const resp = await fetch('http://localhost:8000/api/risk');
       if (resp.ok) {
@@ -106,16 +108,17 @@ export class RiskDashboardPanel extends Panel {
         this.metrics.riskGeo = data.geopolitical;
         this.metrics.riskMacro = data.macro;
         this.metrics.riskVol = data.volatility;
-        // If we have raw VIX from FRED, use it to refine volatility display
         if (data.raw?.vix != null) {
           this.metrics.riskVol = data.components.vix;
         }
-        this.setDataBadge('live');
+        isLive = true;
+        console.log('[RiskDashboard] Live risk score:', data.total, data.components);
       }
-    } catch {
-      this.setDataBadge('cached');
+    } catch (e) {
+      console.warn('[RiskDashboard] API unavailable, using demo data:', e);
     }
     this.render();
+    this.setDataBadge(isLive ? 'live' : 'cached');
     return true;
   }
 

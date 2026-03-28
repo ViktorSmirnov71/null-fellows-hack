@@ -69,15 +69,22 @@ def _get_prices() -> dict[str, float]:
         return _price_cache
     prices = {}
     tickers = list(UNIVERSE.keys())
-    for ticker in tickers:
-        try:
-            t = yf.Ticker(ticker)
-            p = t.fast_info.get("lastPrice", 0)
-            if p and p > 0:
-                prices[ticker] = round(p, 2)
-        except Exception:
-            pass
-        time.sleep(0.3)
+    try:
+        data = yf.download(tickers, period="2d", auto_adjust=True, progress=False, threads=True)
+        closes = data["Close"]
+        for ticker in tickers:
+            try:
+                prices[ticker] = round(float(closes[ticker].iloc[-1]), 2)
+            except Exception:
+                prices[ticker] = 0
+    except Exception:
+        # Fallback to individual fetches
+        for ticker in tickers:
+            try:
+                prices[ticker] = round(float(yf.Ticker(ticker).fast_info.get("lastPrice", 0)), 2)
+            except Exception:
+                prices[ticker] = 0
+            time.sleep(0.3)
     if prices:
         _price_cache = prices
         _price_cache_time = time.time()
