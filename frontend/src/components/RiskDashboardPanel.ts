@@ -97,8 +97,11 @@ export class RiskDashboardPanel extends Panel {
     this.metrics = demoMetrics();
   }
 
+  private hasRendered = false;
+
   public async fetchData(): Promise<boolean> {
-    this.showLoading('Computing world risk score...');
+    // Only show loading spinner on first load — after that, keep old content visible
+    if (!this.hasRendered) this.showLoading('Computing world risk score...');
     let isLive = false;
     try {
       const [riskResp, btResp] = await Promise.allSettled([
@@ -129,6 +132,7 @@ export class RiskDashboardPanel extends Panel {
       console.warn('[RiskDashboard] API unavailable, using demo data:', e);
     }
     this.render();
+    this.hasRendered = true;
     this.setDataBadge(isLive ? 'live' : 'cached');
     if (!this.pollTimer) {
       this.pollTimer = setInterval(() => void this.fetchData(), 8000);

@@ -97,8 +97,10 @@ export class PortfolioPanel extends Panel {
     };
   }
 
+  private hasRendered = false;
+
   public async fetchData(): Promise<boolean> {
-    this.showLoading('Fetching live prices...');
+    if (!this.hasRendered) this.showLoading('Fetching live prices...');
     let isLive = false;
     try {
       const resp = await fetch('http://localhost:8000/api/portfolio');
@@ -132,6 +134,7 @@ export class PortfolioPanel extends Panel {
       console.warn('[Portfolio] API unavailable, using demo data:', e);
     }
     this.render();
+    this.hasRendered = true;
     this.setDataBadge(isLive ? 'live' : 'cached');
     // Poll every 5 seconds for live updates from the optimizer
     if (!this.pollTimer) {
