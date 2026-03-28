@@ -90,22 +90,48 @@ News/GDELT --> Groq+Llama 70B --> FinBERT --> Claude (high-conviction only)
 
 ## Quick Start
 
-```bash
-# Signal Layer
-cd frontend && npm install && npm run dev:finance   # localhost:5173
+### 1. Clone and install
 
-# AI Engine
-cd ai-engine && python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt && python server.py  # localhost:8001
+```bash
+git clone https://github.com/ViktorSmirnov71/null-fellows-hack.git
+cd null-fellows-hack
 ```
 
-**Optional API keys** (features degrade gracefully without them):
+### 2. Configure API keys
 
-| Key | Source | Enables |
-|---|---|---|
-| `GROQ_API_KEY` | [console.groq.com](https://console.groq.com) | AI sentiment filtering & summarization |
-| `FRED_API_KEY` | [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html) | Macroeconomic indicators |
-| `FINNHUB_API_KEY` | [finnhub.io](https://finnhub.io) | Live stock quotes |
+```bash
+cp .env.example .env.local
+cp frontend/.env.example frontend/.env.local
+```
+
+Add your API keys to both `.env.local` files. All keys are optional — the dashboard runs without them, but adding them unlocks more features:
+
+| Key | Free Tier | Get it at | What it unlocks |
+|---|---|---|---|
+| `GROQ_API_KEY` | 14,400 req/day | [console.groq.com](https://console.groq.com) | AI market insights, headline summarization, sentiment filtering |
+| `FRED_API_KEY` | Unlimited | [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html) | GDP, CPI, yield curves, VIX, unemployment — macro signals |
+| `FINNHUB_API_KEY` | 60 req/min | [finnhub.io](https://finnhub.io) | Live stock quotes, earnings, IPO data |
+
+### 3. Start the Signal Layer (frontend)
+
+```bash
+cd frontend
+npm install
+npm run dev:finance
+```
+
+Opens at **http://localhost:3000**
+
+### 4. Start the AI Engine (backend)
+
+```bash
+cd ai-engine
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python server.py
+```
+
+Runs at **http://localhost:8001** — the signal layer connects to it automatically for portfolio data, risk scores, and sentiment signals.
 
 ## Project Structure
 
