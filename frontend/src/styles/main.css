@@ -1798,24 +1798,23 @@ body.panel-resize-active iframe {
 }
 
 .panel-info-tooltip {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+  position: fixed;
+  z-index: 10000;
   background: var(--border-subtle);
   border: 1px solid var(--border-strong);
   border-radius: 4px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   font-size: 11px;
   line-height: 1.5;
   color: var(--text);
   min-width: 320px;
   max-width: 520px;
-  z-index: 1000;
-  box-shadow: 0 4px 16px var(--shadow-color);
+  box-shadow: 0 6px 24px var(--shadow-color);
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.15s ease, visibility 0.15s ease;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .panel-info-tooltip.visible {
@@ -1823,25 +1822,7 @@ body.panel-resize-active iframe {
   visibility: visible;
 }
 
-.panel-info-tooltip::before {
-  content: '';
-  position: absolute;
-  top: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 6px solid transparent;
-  border-bottom-color: var(--border-strong);
-}
-
-.panel-info-tooltip::after {
-  content: '';
-  position: absolute;
-  top: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-bottom-color: var(--border-subtle);
-}
+/* Arrow pseudo-elements removed — tooltip is now fixed-positioned on body */
 
 .panel-info-tooltip strong {
   color: var(--accent);

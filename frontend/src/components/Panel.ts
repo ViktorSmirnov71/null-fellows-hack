@@ -234,6 +234,12 @@ export class Panel {
 
       infoBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        const showing = !tooltip.classList.contains('visible');
+        if (showing) {
+          const rect = infoBtn.getBoundingClientRect();
+          tooltip.style.top = `${rect.bottom + 8}px`;
+          tooltip.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 530))}px`;
+        }
         tooltip.classList.toggle('visible');
       });
 
@@ -243,8 +249,8 @@ export class Panel {
       const infoWrapper = document.createElement('div');
       infoWrapper.className = 'panel-info-wrapper';
       infoWrapper.appendChild(infoBtn);
-      infoWrapper.appendChild(tooltip);
       headerLeft.appendChild(infoWrapper);
+      document.body.appendChild(tooltip);
     }
 
     // Add "new" badge element (hidden by default)
