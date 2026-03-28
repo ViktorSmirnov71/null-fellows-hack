@@ -114,6 +114,8 @@ export class RiskDashboardPanel extends Panel {
         this.metrics.riskGeo = data.geopolitical;
         this.metrics.riskMacro = data.macro;
         this.metrics.riskVol = data.volatility;
+        this.riskHeadlines = (data.headlines || []).slice(0, 4);
+        this.riskLastUpdated = data.last_updated || '';
         isLive = true;
       }
       if (btResp.status === 'fulfilled' && btResp.value.ok) {
@@ -141,6 +143,8 @@ export class RiskDashboardPanel extends Panel {
   }
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private riskHeadlines: Array<{title: string; tone: number; source: string}> = [];
+  private riskLastUpdated = '';
 
   private render(): void {
     const m = this.metrics;
@@ -189,7 +193,16 @@ export class RiskDashboardPanel extends Panel {
           <div style="font-size:8px;color:var(--text-muted)">P(loss >20%)</div>
           <div style="font-size:13px;font-weight:700;color:#e74c3c">${(m.probLoss20 * 100).toFixed(0)}%</div>
         </div>
-      </div>`;
+      </div>
+      ${this.riskHeadlines.length > 0 ? `
+        <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;margin:10px 0 3px">Risk Signals — Live Headlines</div>
+        ${this.riskHeadlines.map(h => `
+          <div style="padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:6px;align-items:baseline">
+            <span style="font-size:10px;font-weight:700;color:${h.tone < -2 ? '#e74c3c' : h.tone < 0 ? '#e67e22' : '#2ecc71'};min-width:30px">${h.tone > 0 ? '+' : ''}${h.tone}</span>
+            <span style="font-size:10px;color:var(--text-dim);flex:1">${h.title}</span>
+          </div>`).join('')}
+        <div style="font-size:8px;color:var(--text-muted);margin-top:4px">GDELT · updated ${this.riskLastUpdated ? new Date(this.riskLastUpdated).toLocaleTimeString() : 'recently'}</div>
+      ` : ''}`;
 
     this.element.querySelector('.panel-content')!.replaceChildren(el);
   }

@@ -404,33 +404,125 @@ def get_portfolio():
     }
 
 
-@app.get("/api/risk")
-def get_risk():
-    """Composite risk score from GDELT."""
-    try:
-        tone_resp = requests.get("https://api.gdeltproject.org/api/v2/doc/doc",
-            params={"query": "market economy", "mode": "TimelineTone", "timespan": "7d", "format": "json"}, timeout=10)
-        tones = [pt.get("value", 0) for s in tone_resp.json().get("timeline", []) for pt in s.get("data", [])]
-        tone_avg = sum(tones) / len(tones) if tones else 0
-        gdelt_tone = max(0, min(1, 0.5 - tone_avg / 20))
-    except Exception:
-        gdelt_tone = 0.5
-    vix = 0.5  # Default without FRED key
-    fred_key = os.getenv("FRED_API_KEY")
-    if fred_key:
+# ── Background Risk Scorer ───────────────────────────────────────────────────
+
+live_risk = {
+    "total": 0.5, "geopolitical": 0.5, "macro": 0.5, "volatility": 0.5,
+    "components": {},
+    "headlines": [],
+    "last_updated": "",
+}
+risk_lock = threading.Lock()
+
+
+def risk_scorer_loop():
+    """Background thread that continuously updates the world risk score."""
+    global live_risk
+    while True:
+        components = {}
+        headlines = []
+
+        # 1. GDELT: global market/economy tone (updated every 15 min)
         try:
-            r = requests.get("https://api.stlouisfed.org/fred/series/observations",
-                params={"series_id": "VIXCLS", "api_key": fred_key, "file_type": "json", "sort_order": "desc", "limit": 1}, timeout=10)
-            v = r.json().get("observations", [{}])[0].get("value", ".")
-            if v != ".":
-                vix = max(0, min(1, (float(v) - 12) / 30))
+            tone_resp = requests.get("https://api.gdeltproject.org/api/v2/doc/doc",
+                params={"query": "market economy finance", "mode": "TimelineTone", "timespan": "3d", "format": "json"}, timeout=12)
+            tones = [pt.get("value", 0) for s in tone_resp.json().get("timeline", []) for pt in s.get("data", [])]
+            components["gdelt_market_tone"] = max(0, min(1, 0.5 - (sum(tones) / len(tones) if tones else 0) / 20))
+        except Exception:
+            components["gdelt_market_tone"] = 0.5
+
+        # 2. GDELT: conflict/crisis tone
+        try:
+            crisis_resp = requests.get("https://api.gdeltproject.org/api/v2/doc/doc",
+                params={"query": "conflict war crisis sanctions", "mode": "TimelineTone", "timespan": "3d", "format": "json"}, timeout=12)
+            crisis_tones = [pt.get("value", 0) for s in crisis_resp.json().get("timeline", []) for pt in s.get("data", [])]
+            components["gdelt_crisis_tone"] = max(0, min(1, 0.5 - (sum(crisis_tones) / len(crisis_tones) if crisis_tones else 0) / 15))
+        except Exception:
+            components["gdelt_crisis_tone"] = 0.5
+
+        # 3. GDELT: volume spike (attention indicator)
+        try:
+            vol_resp = requests.get("https://api.gdeltproject.org/api/v2/doc/doc",
+                params={"query": "market crash recession crisis", "mode": "TimelineVol", "timespan": "3d", "format": "json"}, timeout=12)
+            vols = [pt.get("value", 0) for s in vol_resp.json().get("timeline", []) for pt in s.get("data", [])]
+            components["gdelt_crisis_volume"] = min(1, (sum(vols) / len(vols) if vols else 0) * 15)
+        except Exception:
+            components["gdelt_crisis_volume"] = 0.3
+
+        # 4. Recent negative headlines for display
+        try:
+            art_resp = requests.get("https://api.gdeltproject.org/api/v2/doc/doc",
+                params={"query": "market economy finance", "mode": "ArtList", "timespan": "24h", "maxrecords": 8,
+                         "sort": "ToneAsc", "format": "json"}, timeout=12)
+            for a in art_resp.json().get("articles", [])[:5]:
+                headlines.append({"title": a.get("title", "")[:100], "tone": round(a.get("tone", 0), 1), "source": a.get("domain", "")})
         except Exception:
             pass
-    total = 0.5 * gdelt_tone + 0.5 * vix
-    return {
-        "total": round(total, 3), "geopolitical": round(gdelt_tone, 3),
-        "macro": 0.5, "volatility": round(vix, 3),
-    }
+
+        # 5. FRED data (if key available)
+        fred_key = os.getenv("FRED_API_KEY")
+        if fred_key:
+            for series_id, key_name, transform in [
+                ("VIXCLS", "vix", lambda v: max(0, min(1, (v - 12) / 30))),
+                ("T10Y2Y", "yield_spread", lambda v: max(0, min(1, 0.5 - v / 4))),
+                ("UMCSENT", "consumer_sentiment", lambda v: max(0, min(1, 1 - v / 100))),
+                ("UNRATE", "unemployment", lambda v: max(0, min(1, v / 10))),
+            ]:
+                try:
+                    r = requests.get("https://api.stlouisfed.org/fred/series/observations",
+                        params={"series_id": series_id, "api_key": fred_key, "file_type": "json", "sort_order": "desc", "limit": 1}, timeout=8)
+                    val = r.json().get("observations", [{}])[0].get("value", ".")
+                    if val != ".":
+                        components[key_name] = transform(float(val))
+                except Exception:
+                    pass
+
+        # Without FRED, estimate volatility from recent market data
+        if "vix" not in components:
+            try:
+                spy = yf.download("SPY", period="5d", auto_adjust=True, progress=False)["Close"].pct_change().dropna()
+                recent_vol = float(spy.std()) * (252 ** 0.5) * 100  # annualized
+                components["vix"] = max(0, min(1, (recent_vol - 8) / 30))
+            except Exception:
+                components["vix"] = 0.5
+
+        # Composite score (weighted)
+        weights = {
+            "gdelt_market_tone": 0.20, "gdelt_crisis_tone": 0.15, "gdelt_crisis_volume": 0.10,
+            "vix": 0.20, "yield_spread": 0.15, "consumer_sentiment": 0.10, "unemployment": 0.10,
+        }
+        total = sum(components.get(k, 0.5) * w for k, w in weights.items())
+
+        geo = (components.get("gdelt_market_tone", 0.5) + components.get("gdelt_crisis_tone", 0.5) + components.get("gdelt_crisis_volume", 0.3)) / 3
+        macro = (components.get("yield_spread", 0.5) + components.get("consumer_sentiment", 0.5) + components.get("unemployment", 0.5)) / 3
+        vol = components.get("vix", 0.5)
+
+        with risk_lock:
+            live_risk = {
+                "total": round(total, 3),
+                "geopolitical": round(geo, 3),
+                "macro": round(macro, 3),
+                "volatility": round(vol, 3),
+                "components": {k: round(v, 3) for k, v in components.items()},
+                "headlines": headlines,
+                "last_updated": datetime.now(timezone.utc).isoformat(),
+            }
+
+        print(f"[Risk] Updated: total={total:.3f} geo={geo:.3f} macro={macro:.3f} vol={vol:.3f} ({len(components)} signals, {len(headlines)} headlines)")
+
+        # Refresh every 2 minutes
+        time.sleep(120)
+
+
+risk_thread = threading.Thread(target=risk_scorer_loop, daemon=True)
+risk_thread.start()
+
+
+@app.get("/api/risk")
+def get_risk():
+    """Live world risk score — updated every 2 minutes from GDELT + FRED."""
+    with risk_lock:
+        return copy.deepcopy(live_risk)
 
 
 @app.get("/api/backtest")
