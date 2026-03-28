@@ -261,9 +261,15 @@ export class ResearchSimulator {
 
   start(): void {
     if (this.state.running) return;
-    this.state.running = true;
-    this.aborted = false;
+    this.forceStart();
+  }
+
+  /** Kill any stale loop and start fresh. Safe to call at any time. */
+  forceStart(): void {
+    // Increment generation so any lingering async loop dies at its next checkpoint
     this.generation++;
+    this.aborted = false;
+    this.state.running = true;
     void this.runLoop(this.generation);
   }
 
@@ -274,7 +280,7 @@ export class ResearchSimulator {
 
   resume(): void {
     if (this.state.running) return;
-    this.start();
+    this.forceStart();
   }
 
   /** Returns true if the current loop generation is still valid */
@@ -298,15 +304,22 @@ export class ResearchSimulator {
   /* ── Main loop ── */
 
   private async runLoop(gen: number): Promise<void> {
-    while (this.alive(gen)) {
-      try {
-        await this.runExperiment(gen);
-        if (!this.alive(gen)) return;
-        await this.delay(2000); // Brief pause between experiments
-      } catch (e) {
-        if (!this.alive(gen)) return;
-        this.emit({ type: 'error', message: `Loop error: ${e}` });
-        await this.delay(3000);
+    try {
+      while (this.alive(gen)) {
+        try {
+          await this.runExperiment(gen);
+          if (!this.alive(gen)) return;
+          await this.delay(2000); // Brief pause between experiments
+        } catch (e) {
+          if (!this.alive(gen)) return;
+          this.emit({ type: 'error', message: `Loop error: ${e}` });
+          await this.delay(3000);
+        }
+      }
+    } finally {
+      // Only mark as not running if this is still the active generation
+      if (gen === this.generation) {
+        this.state.running = false;
       }
     }
   }

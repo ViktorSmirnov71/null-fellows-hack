@@ -78,7 +78,8 @@ export class LiveResearcherPage {
   /* ── Lifecycle ── */
 
   activate(): void {
-    this.sim.start();
+    // forceStart kills any stale loop and starts fresh — never gets stuck
+    this.sim.forceStart();
     if (this.pulseEl) this.pulseEl.classList.remove('paused');
     if (this.pauseBtn) this.pauseBtn.textContent = 'PAUSE';
   }
