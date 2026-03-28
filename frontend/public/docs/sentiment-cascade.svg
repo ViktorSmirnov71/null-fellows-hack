@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 500" width="600" height="500">
+  <!-- Background -->
+  <rect width="600" height="500" fill="#0a0f0a" rx="4"/>
+
+  <!-- Title -->
+  <text x="300" y="30" text-anchor="middle" fill="#4ade80" font-family="'SF Mono','Fira Code','Consolas',monospace" font-size="13" font-weight="600" letter-spacing="2">SENTIMENT CASCADE PIPELINE</text>
+  <line x1="170" y1="38" x2="430" y2="38" stroke="#4ade80" stroke-opacity="0.3" stroke-width="1"/>
+
+  <!-- Funnel guide lines (subtle) -->
+  <line x1="60" y1="50" x2="140" y2="430" stroke="#4ade80" stroke-opacity="0.04" stroke-width="1"/>
+  <line x1="540" y1="50" x2="460" y2="430" stroke="#4ade80" stroke-opacity="0.04" stroke-width="1"/>
+
+  <!-- SOURCE BOX — widest -->
+  <rect x="60" y="55" width="480" height="48" rx="6" fill="#0a0f0a" stroke="#6b7280" stroke-width="1.2"/>
+  <rect x="60" y="55" width="480" height="48" rx="6" fill="#6b7280" fill-opacity="0.08"/>
+  <text x="300" y="76" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="12" font-weight="600">500+ News Sources / GDELT / RSS</text>
+  <text x="300" y="93" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="9" fill-opacity="0.4">Raw unfiltered global event stream</text>
+
+  <!-- Arrow down -->
+  <line x1="300" y1="103" x2="300" y2="128" stroke="#4ade80" stroke-width="1.2" stroke-opacity="0.6"/>
+  <polygon points="296,128 300,136 304,128" fill="#4ade80" fill-opacity="0.6"/>
+  <!-- Volume indicator -->
+  <text x="330" y="120" fill="#e5e5e5" font-family="'SF Mono','Consolas',monospace" font-size="8" fill-opacity="0.3">~500/hr</text>
+
+  <!-- TIER 1 BOX -->
+  <rect x="100" y="140" width="400" height="64" rx="6" fill="#0a0f0a" stroke="#f59e0b" stroke-width="1.2"/>
+  <rect x="100" y="140" width="400" height="64" rx="6" fill="#f59e0b" fill-opacity="0.06"/>
+  <!-- Tier badge -->
+  <rect x="110" y="148" width="42" height="16" rx="3" fill="#f59e0b" fill-opacity="0.2"/>
+  <text x="131" y="160" text-anchor="middle" fill="#f59e0b" font-family="'SF Mono','Consolas',monospace" font-size="8" font-weight="700">T1</text>
+  <!-- Content -->
+  <text x="300" y="162" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="13" font-weight="600">GROQ + Llama 70B</text>
+  <text x="300" y="180" text-anchor="middle" fill="#f59e0b" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.8">~50ms</text>
+  <text x="300" y="195" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="9" fill-opacity="0.5">Filter to ~80 relevant articles</text>
+
+  <!-- Arrow down -->
+  <line x1="300" y1="204" x2="300" y2="229" stroke="#4ade80" stroke-width="1.2" stroke-opacity="0.6"/>
+  <polygon points="296,229 300,237 304,229" fill="#4ade80" fill-opacity="0.6"/>
+  <text x="330" y="221" fill="#e5e5e5" font-family="'SF Mono','Consolas',monospace" font-size="8" fill-opacity="0.3">~80</text>
+
+  <!-- TIER 2 BOX -->
+  <rect x="130" y="241" width="340" height="64" rx="6" fill="#0a0f0a" stroke="#3b82f6" stroke-width="1.2"/>
+  <rect x="130" y="241" width="340" height="64" rx="6" fill="#3b82f6" fill-opacity="0.06"/>
+  <!-- Tier badge -->
+  <rect x="140" y="249" width="42" height="16" rx="3" fill="#3b82f6" fill-opacity="0.2"/>
+  <text x="161" y="261" text-anchor="middle" fill="#3b82f6" font-family="'SF Mono','Consolas',monospace" font-size="8" font-weight="700">T2</text>
+  <!-- Content -->
+  <text x="300" y="263" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="13" font-weight="600">FinBERT (ProsusAI)</text>
+  <text x="300" y="281" text-anchor="middle" fill="#3b82f6" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.8">~200ms</text>
+  <text x="300" y="296" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="9" fill-opacity="0.5">Sentiment [-1, +1] + Ticker extraction</text>
+
+  <!-- Arrow down -->
+  <line x1="300" y1="305" x2="300" y2="330" stroke="#4ade80" stroke-width="1.2" stroke-opacity="0.6"/>
+  <polygon points="296,330 300,338 304,330" fill="#4ade80" fill-opacity="0.6"/>
+  <text x="330" y="322" fill="#e5e5e5" font-family="'SF Mono','Consolas',monospace" font-size="8" fill-opacity="0.3">~30</text>
+
+  <!-- TIER 3 BOX -->
+  <rect x="160" y="342" width="280" height="72" rx="6" fill="#0a0f0a" stroke="#8b5cf6" stroke-width="1.5"/>
+  <rect x="160" y="342" width="280" height="72" rx="6" fill="#8b5cf6" fill-opacity="0.06"/>
+  <!-- Tier badge -->
+  <rect x="170" y="350" width="42" height="16" rx="3" fill="#8b5cf6" fill-opacity="0.2"/>
+  <text x="191" y="362" text-anchor="middle" fill="#8b5cf6" font-family="'SF Mono','Consolas',monospace" font-size="8" font-weight="700">T3</text>
+  <!-- Content -->
+  <text x="300" y="366" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="13" font-weight="600">Claude (Anthropic)</text>
+  <text x="300" y="384" text-anchor="middle" fill="#8b5cf6" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.8">~2s</text>
+  <text x="300" y="399" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="9" fill-opacity="0.5">Second-order analysis | Conviction > 0.7 only</text>
+
+  <!-- Arrow down -->
+  <line x1="300" y1="414" x2="300" y2="434" stroke="#4ade80" stroke-width="1.2" stroke-opacity="0.6"/>
+  <polygon points="296,434 300,442 304,434" fill="#4ade80" fill-opacity="0.6"/>
+  <text x="330" y="430" fill="#e5e5e5" font-family="'SF Mono','Consolas',monospace" font-size="8" fill-opacity="0.3">~5-10</text>
+
+  <!-- OUTPUT BOX -->
+  <rect x="190" y="446" width="220" height="36" rx="6" fill="#0a0f0a" stroke="#4ade80" stroke-width="1.5"/>
+  <rect x="190" y="446" width="220" height="36" rx="6" fill="#4ade80" fill-opacity="0.08"/>
+  <text x="300" y="469" text-anchor="middle" fill="#4ade80" font-family="'SF Mono','Consolas',monospace" font-size="10" font-weight="600">{ ticker, direction, conviction }</text>
+
+  <!-- Side annotations — latency -->
+  <text x="555" y="160" fill="#e5e5e5" font-family="'SF Mono','Consolas',monospace" font-size="8" fill-opacity="0.25">SPEED</text>
+  <text x="555" y="200" fill="#f59e0b" font-family="'SF Mono','Consolas',monospace" font-size="22" fill-opacity="0.15">|</text>
+  <text x="555" y="300" fill="#3b82f6" font-family="'SF Mono','Consolas',monospace" font-size="22" fill-opacity="0.15">|</text>
+  <text x="555" y="390" fill="#8b5cf6" font-family="'SF Mono','Consolas',monospace" font-size="22" fill-opacity="0.15">|</text>
+  <text x="555" y="465" fill="#e5e5e5" font-family="'SF Mono','Consolas',monospace" font-size="8" fill-opacity="0.25">DEPTH</text>
+
+  <!-- Subtle border -->
+  <line x1="0" y1="499" x2="600" y2="499" stroke="#4ade80" stroke-opacity="0.08" stroke-width="0.5"/>
+  <line x1="0" y1="0.5" x2="600" y2="0.5" stroke="#4ade80" stroke-opacity="0.08" stroke-width="0.5"/>
+</svg>

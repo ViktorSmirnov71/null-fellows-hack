@@ -61,6 +61,12 @@ Our thesis: construct **asymmetric portfolios** that capture upside in growth re
 - SEC's August 2025 policy change eliminated minimum investment requirements for registered alternative funds
 - Managed futures have **positive crisis alpha**: +20-40% in 2022, +30% in 2008, +15% in 2020 COVID crash (Kathryn Kaminski, AlphaSimplex)
 
+### Portfolio Allocation
+
+<p align="center">
+  <img src="frontend/public/docs/asset-allocation.svg" alt="Asset Allocation" width="800" />
+</p>
+
 ### Our Benchmark
 
 | Metric | Our Target | 60/40 Baseline | Why It Matters |
@@ -78,6 +84,10 @@ Our thesis: construct **asymmetric portfolios** that capture upside in growth re
 ### Inspiration
 
 Adapted from [karpathy/autoresearch](https://github.com/karpathy/autoresearch), which uses an AI agent to autonomously run ML experiments — proposing changes, evaluating results, keeping improvements, discarding regressions. We apply the identical pattern to portfolio allocation.
+
+<p align="center">
+  <img src="frontend/public/docs/autoallocator-loop.svg" alt="AutoAllocator Loop" width="800" />
+</p>
 
 ### How Autoresearch Maps to Finance
 
@@ -187,6 +197,10 @@ Every parameter in this file is a mutation target. The agent can shift weights, 
 
 ## Sentiment Pipeline
 
+<p align="center">
+  <img src="frontend/public/docs/sentiment-cascade.svg" alt="Sentiment Cascade" width="600" />
+</p>
+
 Three-tier cascade optimized for speed and accuracy:
 
 ```
@@ -222,6 +236,10 @@ Three-tier cascade optimized for speed and accuracy:
 ```
 
 ## Composite World Risk Score
+
+<p align="center">
+  <img src="frontend/public/docs/risk-regime.svg" alt="Risk Regime" width="800" />
+</p>
 
 Six signals combined into a single 0-1 risk score that directly drives portfolio allocation:
 

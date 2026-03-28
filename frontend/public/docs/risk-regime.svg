@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" width="800" height="300">
+  <!-- Background -->
+  <rect width="800" height="300" fill="#0a0f0a" rx="4"/>
+
+  <!-- Title -->
+  <text x="400" y="28" text-anchor="middle" fill="#4ade80" font-family="'SF Mono','Fira Code','Consolas',monospace" font-size="13" font-weight="600" letter-spacing="2">WORLD RISK REGIME SPECTRUM</text>
+  <line x1="250" y1="36" x2="550" y2="36" stroke="#4ade80" stroke-opacity="0.3" stroke-width="1"/>
+
+  <!-- Gauge track background -->
+  <rect x="80" y="60" width="640" height="36" rx="18" fill="#1a1f1a" stroke="#2a2f2a" stroke-width="0.5"/>
+
+  <!-- GROWTH zone: 0.0 - 0.3 = 192px -->
+  <rect x="80" y="60" width="192" height="36" rx="18" fill="#22c55e" fill-opacity="0.2"/>
+  <!-- Clip the right side rounded corner -->
+  <rect x="170" y="60" width="102" height="36" fill="#22c55e" fill-opacity="0.2"/>
+
+  <!-- NEUTRAL zone: 0.3 - 0.7 = 256px -->
+  <rect x="272" y="60" width="256" height="36" fill="#f59e0b" fill-opacity="0.15"/>
+
+  <!-- DEFENSIVE zone: 0.7 - 1.0 = 192px -->
+  <rect x="528" y="60" width="192" height="36" rx="18" fill="#ef4444" fill-opacity="0.2"/>
+  <rect x="528" y="60" width="102" height="36" fill="#ef4444" fill-opacity="0.2"/>
+
+  <!-- Zone labels on the bar -->
+  <text x="176" y="83" text-anchor="middle" fill="#22c55e" font-family="'Inter','Helvetica Neue',sans-serif" font-size="12" font-weight="700">GROWTH</text>
+  <text x="400" y="83" text-anchor="middle" fill="#f59e0b" font-family="'Inter','Helvetica Neue',sans-serif" font-size="12" font-weight="700">NEUTRAL</text>
+  <text x="624" y="83" text-anchor="middle" fill="#ef4444" font-family="'Inter','Helvetica Neue',sans-serif" font-size="12" font-weight="700">DEFENSIVE</text>
+
+  <!-- Scale markers -->
+  <text x="80" y="112" text-anchor="middle" fill="#e5e5e5" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.5">0.0</text>
+  <line x1="80" y1="96" x2="80" y2="102" stroke="#e5e5e5" stroke-opacity="0.3" stroke-width="0.8"/>
+
+  <text x="272" y="112" text-anchor="middle" fill="#e5e5e5" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.5">0.3</text>
+  <line x1="272" y1="96" x2="272" y2="102" stroke="#e5e5e5" stroke-opacity="0.3" stroke-width="0.8"/>
+
+  <text x="400" y="112" text-anchor="middle" fill="#e5e5e5" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.5">0.5</text>
+  <line x1="400" y1="96" x2="400" y2="102" stroke="#e5e5e5" stroke-opacity="0.3" stroke-width="0.8"/>
+
+  <text x="528" y="112" text-anchor="middle" fill="#e5e5e5" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.5">0.7</text>
+  <line x1="528" y1="96" x2="528" y2="102" stroke="#e5e5e5" stroke-opacity="0.3" stroke-width="0.8"/>
+
+  <text x="720" y="112" text-anchor="middle" fill="#e5e5e5" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.5">1.0</text>
+  <line x1="720" y1="96" x2="720" y2="102" stroke="#e5e5e5" stroke-opacity="0.3" stroke-width="0.8"/>
+
+  <!-- Growth overweight tickers -->
+  <text x="176" y="130" text-anchor="middle" fill="#22c55e" font-family="'SF Mono','Consolas',monospace" font-size="8" fill-opacity="0.6">Overweight:</text>
+  <text x="176" y="143" text-anchor="middle" fill="#22c55e" font-family="'SF Mono','Consolas',monospace" font-size="10" font-weight="600">SPY  VTI  ARCC  BXSL</text>
+
+  <!-- Neutral label -->
+  <text x="400" y="130" text-anchor="middle" fill="#f59e0b" font-family="'SF Mono','Consolas',monospace" font-size="8" fill-opacity="0.6">Strategy:</text>
+  <text x="400" y="143" text-anchor="middle" fill="#f59e0b" font-family="'SF Mono','Consolas',monospace" font-size="10" font-weight="600">Hold base weights</text>
+
+  <!-- Defensive overweight tickers -->
+  <text x="624" y="130" text-anchor="middle" fill="#ef4444" font-family="'SF Mono','Consolas',monospace" font-size="8" fill-opacity="0.6">Overweight:</text>
+  <text x="624" y="143" text-anchor="middle" fill="#ef4444" font-family="'SF Mono','Consolas',monospace" font-size="10" font-weight="600">GLDM  AGG  JAAA  DBMF</text>
+
+  <!-- Separator -->
+  <line x1="80" y1="162" x2="720" y2="162" stroke="#4ade80" stroke-opacity="0.12" stroke-width="0.5"/>
+
+  <!-- Signal Inputs Section -->
+  <text x="400" y="182" text-anchor="middle" fill="#4ade80" font-family="'SF Mono','Consolas',monospace" font-size="10" font-weight="600" letter-spacing="1">SIGNAL INPUTS</text>
+
+  <!-- Signal boxes — row of 6 -->
+  <!-- GDELT Tone 20% -->
+  <rect x="55" y="196" width="105" height="46" rx="4" fill="#0a0f0a" stroke="#4ade80" stroke-width="0.8" stroke-opacity="0.4"/>
+  <text x="107" y="213" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="9" font-weight="600">GDELT Tone</text>
+  <text x="107" y="232" text-anchor="middle" fill="#4ade80" font-family="'SF Mono','Consolas',monospace" font-size="12" font-weight="700">20%</text>
+
+  <!-- GDELT Volume 15% -->
+  <rect x="170" y="196" width="105" height="46" rx="4" fill="#0a0f0a" stroke="#4ade80" stroke-width="0.8" stroke-opacity="0.4"/>
+  <text x="222" y="213" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="9" font-weight="600">GDELT Volume</text>
+  <text x="222" y="232" text-anchor="middle" fill="#4ade80" font-family="'SF Mono','Consolas',monospace" font-size="12" font-weight="700">15%</text>
+
+  <!-- Yield Curve 20% -->
+  <rect x="285" y="196" width="105" height="46" rx="4" fill="#0a0f0a" stroke="#4ade80" stroke-width="0.8" stroke-opacity="0.4"/>
+  <text x="337" y="213" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="9" font-weight="600">Yield Curve</text>
+  <text x="337" y="232" text-anchor="middle" fill="#4ade80" font-family="'SF Mono','Consolas',monospace" font-size="12" font-weight="700">20%</text>
+
+  <!-- VIX 20% -->
+  <rect x="400" y="196" width="105" height="46" rx="4" fill="#0a0f0a" stroke="#4ade80" stroke-width="0.8" stroke-opacity="0.4"/>
+  <text x="452" y="213" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="9" font-weight="600">VIX</text>
+  <text x="452" y="232" text-anchor="middle" fill="#4ade80" font-family="'SF Mono','Consolas',monospace" font-size="12" font-weight="700">20%</text>
+
+  <!-- Consumer Sentiment 10% -->
+  <rect x="515" y="196" width="105" height="46" rx="4" fill="#0a0f0a" stroke="#4ade80" stroke-width="0.8" stroke-opacity="0.4"/>
+  <text x="567" y="213" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="9" font-weight="600">Consumer Sent.</text>
+  <text x="567" y="232" text-anchor="middle" fill="#4ade80" font-family="'SF Mono','Consolas',monospace" font-size="12" font-weight="700">10%</text>
+
+  <!-- Unemployment 15% -->
+  <rect x="630" y="196" width="105" height="46" rx="4" fill="#0a0f0a" stroke="#4ade80" stroke-width="0.8" stroke-opacity="0.4"/>
+  <text x="682" y="213" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="9" font-weight="600">Unemployment</text>
+  <text x="682" y="232" text-anchor="middle" fill="#4ade80" font-family="'SF Mono','Consolas',monospace" font-size="12" font-weight="700">15%</text>
+
+  <!-- Connection lines from signals up to gauge -->
+  <line x1="107" y1="196" x2="107" y2="170" stroke="#4ade80" stroke-width="0.4" stroke-opacity="0.15"/>
+  <line x1="222" y1="196" x2="222" y2="170" stroke="#4ade80" stroke-width="0.4" stroke-opacity="0.15"/>
+  <line x1="337" y1="196" x2="337" y2="170" stroke="#4ade80" stroke-width="0.4" stroke-opacity="0.15"/>
+  <line x1="452" y1="196" x2="452" y2="170" stroke="#4ade80" stroke-width="0.4" stroke-opacity="0.15"/>
+  <line x1="567" y1="196" x2="567" y2="170" stroke="#4ade80" stroke-width="0.4" stroke-opacity="0.15"/>
+  <line x1="682" y1="196" x2="682" y2="170" stroke="#4ade80" stroke-width="0.4" stroke-opacity="0.15"/>
+
+  <!-- Total weight verification -->
+  <text x="400" y="263" text-anchor="middle" fill="#e5e5e5" font-family="'SF Mono','Consolas',monospace" font-size="8" fill-opacity="0.3">Weighted composite = world_risk_score  |  Updated every 30s</text>
+
+  <!-- Current pointer indicator (example at 0.35) -->
+  <polygon points="191,56 196,48 201,56" fill="#4ade80"/>
+  <text x="196" y="45" text-anchor="middle" fill="#4ade80" font-family="'SF Mono','Consolas',monospace" font-size="8" font-weight="700">0.35</text>
+  <line x1="196" y1="56" x2="196" y2="96" stroke="#4ade80" stroke-width="1.5" stroke-opacity="0.6"/>
+
+  <!-- Subtle border -->
+  <line x1="0" y1="299" x2="800" y2="299" stroke="#4ade80" stroke-opacity="0.08" stroke-width="0.5"/>
+  <line x1="0" y1="0.5" x2="800" y2="0.5" stroke="#4ade80" stroke-opacity="0.08" stroke-width="0.5"/>
+</svg>

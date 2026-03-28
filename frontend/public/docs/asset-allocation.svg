@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="800" height="200">
+  <!-- Background -->
+  <rect width="800" height="200" fill="#0a0f0a" rx="4"/>
+
+  <!-- Title -->
+  <text x="400" y="28" text-anchor="middle" fill="#4ade80" font-family="'SF Mono','Fira Code','Consolas',monospace" font-size="13" font-weight="600" letter-spacing="2">PORTFOLIO ASSET ALLOCATION</text>
+  <line x1="260" y1="36" x2="540" y2="36" stroke="#4ade80" stroke-opacity="0.3" stroke-width="1"/>
+
+  <!-- Stacked bar background -->
+  <rect x="50" y="55" width="700" height="50" rx="4" fill="#1a1f1a" stroke="#2a2f2a" stroke-width="0.5"/>
+
+  <!-- Core Equity 30% = 210px -->
+  <rect x="50" y="55" width="210" height="50" rx="4" fill="#3b82f6" fill-opacity="0.85"/>
+  <text x="155" y="76" text-anchor="middle" fill="#ffffff" font-family="'Inter','Helvetica Neue',sans-serif" font-size="11" font-weight="700">Core Equity</text>
+  <text x="155" y="92" text-anchor="middle" fill="#ffffff" font-family="'SF Mono','Consolas',monospace" font-size="10" fill-opacity="0.9">30%</text>
+
+  <!-- Managed Futures 20% = 140px -->
+  <rect x="260" y="55" width="140" height="50" fill="#8b5cf6" fill-opacity="0.85"/>
+  <text x="330" y="76" text-anchor="middle" fill="#ffffff" font-family="'Inter','Helvetica Neue',sans-serif" font-size="11" font-weight="700">Managed Futures</text>
+  <text x="330" y="92" text-anchor="middle" fill="#ffffff" font-family="'SF Mono','Consolas',monospace" font-size="10" fill-opacity="0.9">20%</text>
+
+  <!-- CLO/Structured Credit 15% = 105px -->
+  <rect x="400" y="55" width="105" height="50" fill="#06b6d4" fill-opacity="0.85"/>
+  <text x="452" y="76" text-anchor="middle" fill="#ffffff" font-family="'Inter','Helvetica Neue',sans-serif" font-size="9" font-weight="700">CLO/Struct.</text>
+  <text x="452" y="92" text-anchor="middle" fill="#ffffff" font-family="'SF Mono','Consolas',monospace" font-size="10" fill-opacity="0.9">15%</text>
+
+  <!-- Private Credit BDCs 15% = 105px -->
+  <rect x="505" y="55" width="105" height="50" fill="#f59e0b" fill-opacity="0.85"/>
+  <text x="557" y="76" text-anchor="middle" fill="#ffffff" font-family="'Inter','Helvetica Neue',sans-serif" font-size="9" font-weight="700">Priv. Credit</text>
+  <text x="557" y="92" text-anchor="middle" fill="#ffffff" font-family="'SF Mono','Consolas',monospace" font-size="10" fill-opacity="0.9">15%</text>
+
+  <!-- Real Assets 10% = 70px -->
+  <rect x="610" y="55" width="70" height="50" fill="#22c55e" fill-opacity="0.85"/>
+  <text x="645" y="76" text-anchor="middle" fill="#ffffff" font-family="'Inter','Helvetica Neue',sans-serif" font-size="8" font-weight="700">Real</text>
+  <text x="645" y="92" text-anchor="middle" fill="#ffffff" font-family="'SF Mono','Consolas',monospace" font-size="10" fill-opacity="0.9">10%</text>
+
+  <!-- Fixed Income 10% = 70px -->
+  <rect x="680" y="55" width="70" height="50" rx="0 4 4 0" fill="#6b7280" fill-opacity="0.85"/>
+  <text x="715" y="76" text-anchor="middle" fill="#ffffff" font-family="'Inter','Helvetica Neue',sans-serif" font-size="8" font-weight="700">Fixed</text>
+  <text x="715" y="92" text-anchor="middle" fill="#ffffff" font-family="'SF Mono','Consolas',monospace" font-size="10" fill-opacity="0.9">10%</text>
+
+  <!-- Ticker labels below bar -->
+  <!-- Core Equity tickers -->
+  <line x1="155" y1="105" x2="155" y2="115" stroke="#3b82f6" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="155" y="128" text-anchor="middle" fill="#3b82f6" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.9">SPY  VTI  QQQM</text>
+  <text x="155" y="141" text-anchor="middle" fill="#3b82f6" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.9">VEA  VWO</text>
+
+  <!-- Managed Futures tickers -->
+  <line x1="330" y1="105" x2="330" y2="115" stroke="#8b5cf6" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="330" y="128" text-anchor="middle" fill="#8b5cf6" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.9">DBMF  CTA  KMLM</text>
+
+  <!-- CLO tickers -->
+  <line x1="452" y1="105" x2="452" y2="115" stroke="#06b6d4" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="452" y="128" text-anchor="middle" fill="#06b6d4" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.9">JAAA  JBBB</text>
+
+  <!-- BDC tickers -->
+  <line x1="557" y1="105" x2="557" y2="115" stroke="#f59e0b" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="557" y="128" text-anchor="middle" fill="#f59e0b" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.9">ARCC  BXSL  MAIN</text>
+
+  <!-- Real Asset tickers -->
+  <line x1="645" y1="105" x2="645" y2="115" stroke="#22c55e" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="645" y="128" text-anchor="middle" fill="#22c55e" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.9">GLDM  GSG</text>
+
+  <!-- Fixed Income tickers -->
+  <line x1="715" y1="105" x2="715" y2="115" stroke="#6b7280" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="715" y="128" text-anchor="middle" fill="#6b7280" font-family="'SF Mono','Consolas',monospace" font-size="9" fill-opacity="0.9">AGG  TLT</text>
+
+  <!-- Total label -->
+  <text x="400" y="165" text-anchor="middle" fill="#e5e5e5" font-family="'Inter','Helvetica Neue',sans-serif" font-size="9" fill-opacity="0.4">Total: 100%  |  ~50 investable tickers in PORTFOLIO_UNIVERSE</text>
+
+  <!-- Bottom accent line -->
+  <rect x="50" y="180" width="700" height="1" fill="#4ade80" fill-opacity="0.15"/>
+
+  <!-- Subtle border lines -->
+  <line x1="0" y1="199" x2="800" y2="199" stroke="#4ade80" stroke-opacity="0.08" stroke-width="0.5"/>
+  <line x1="0" y1="0.5" x2="800" y2="0.5" stroke="#4ade80" stroke-opacity="0.08" stroke-width="0.5"/>
+</svg>
