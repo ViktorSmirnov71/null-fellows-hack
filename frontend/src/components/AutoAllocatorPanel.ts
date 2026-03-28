@@ -52,9 +52,10 @@ Adapted from <a href="https://github.com/karpathy/autoresearch" target="_blank">
   public async fetchData(): Promise<boolean> {
     let isLive = false;
     try {
-      const [riskResp, expResp] = await Promise.allSettled([
+      const [riskResp, expResp, sigResp] = await Promise.allSettled([
         fetch('http://localhost:8000/api/risk'),
         fetch('http://localhost:8000/api/experiments'),
+        fetch('http://localhost:8000/api/signals'),
       ]);
       if (riskResp.status === 'fulfilled' && riskResp.value.ok) {
         const data = await riskResp.value.json();
@@ -71,7 +72,10 @@ Adapted from <a href="https://github.com/karpathy/autoresearch" target="_blank">
           timestamp: '',
         }));
         isLive = true;
-        console.log('[AutoAllocator] Loaded', data.totalExperiments, 'real experiments, best Sharpe:', data.bestSharpe);
+      }
+      if (sigResp.status === 'fulfilled' && sigResp.value.ok) {
+        const data = await sigResp.value.json();
+        this.worldSignals = (data.signals || []).slice(0, 6);
       }
     } catch (e) {
       console.warn('[AutoAllocator] API unavailable, using demo data:', e);
@@ -92,6 +96,7 @@ Adapted from <a href="https://github.com/karpathy/autoresearch" target="_blank">
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private liveRiskScore = 0.42;
+  private worldSignals: Array<{source: string; sector: string; direction: string; tone: number; headline: string; tickers: string[]}> = [];
 
   private startSimulation(): void {
     if (this.simTimer) return;
@@ -210,8 +215,21 @@ Adapted from <a href="https://github.com/karpathy/autoresearch" target="_blank">
         <span>${kept.length} kept (${keepRate}%)</span><span>${discarded.length} disc</span><span>${crashed.length} crash</span>
       </div>
       ${frontierSVG}
-      <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;margin:4px 0 2px">Experiment Log</div>
-      <div style="max-height:220px;overflow-y:auto">${rows}</div>
+      ${this.worldSignals.length > 0 ? `
+        <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;margin:6px 0 3px">World Event Signals</div>
+        ${this.worldSignals.map(s => {
+          const dirColor = s.direction === 'defensive' ? '#e67e22' : s.direction === 'growth' ? '#2ecc71' : '#95a5a6';
+          const arrow = s.direction === 'defensive' ? '\u{1F6E1}' : s.direction === 'growth' ? '\u{1F4C8}' : '\u{2796}';
+          return `<div style="padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:5px;align-items:baseline">
+            <span style="font-size:10px">${arrow}</span>
+            <span style="font-size:9px;color:${dirColor};font-weight:600;min-width:18px">${s.tone > 0 ? '+' : ''}${s.tone}</span>
+            <span style="font-size:9px;color:var(--text-dim);flex:1">${escapeHtml(s.headline)}</span>
+            <span style="font-size:8px;color:var(--text-muted)">${s.tickers.join(',')}</span>
+          </div>`;
+        }).join('')}
+      ` : ''}
+      <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;margin:6px 0 2px">Experiment Log</div>
+      <div style="max-height:180px;overflow-y:auto">${rows}</div>
     `;
 
     // Add pulse animation if not already present

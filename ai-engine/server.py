@@ -234,7 +234,156 @@ MUTATION_STRATEGIES = [
     "tilt_growth",      # Shift toward growth assets
     "random_perturb",   # Small random changes to all weights
     "concentrate",      # Increase best-performing category
+    "world_signal",     # React to live world events data
 ]
+
+# ── World Signals Collector ──────────────────────────────────────────────────
+
+world_signals: dict = {"signals": [], "last_updated": ""}
+world_signals_lock = threading.Lock()
+
+# Map world events to portfolio sectors
+SECTOR_SENSITIVITY = {
+    "energy": {"tickers": ["PDBC"], "keywords": ["oil", "crude", "opec", "gas", "energy", "pipeline", "saudi", "iran"]},
+    "metals": {"tickers": ["GLDM", "PDBC"], "keywords": ["gold", "silver", "copper", "lithium", "mining", "metals", "commodity"]},
+    "conflict": {"tickers": ["GLDM", "AGG", "DBMF"], "keywords": ["war", "conflict", "military", "attack", "missile", "sanctions", "invasion"]},
+    "rates": {"tickers": ["AGG", "SRLN", "JAAA"], "keywords": ["fed", "rate", "yield", "treasury", "bond", "inflation", "cpi"]},
+    "equity": {"tickers": ["SPY", "VTI"], "keywords": ["stocks", "rally", "selloff", "nasdaq", "s&p", "dow", "earnings", "recession"]},
+    "credit": {"tickers": ["ARCC", "BXSL", "JAAA", "CLOA"], "keywords": ["credit", "lending", "default", "spread", "loan", "clo", "debt"]},
+    "trade": {"tickers": ["SPY", "VTI", "PDBC"], "keywords": ["tariff", "trade war", "supply chain", "shipping", "china", "import", "export"]},
+}
+
+
+def collect_world_signals():
+    """Background thread that collects signals from the same sources WorldMonitor uses."""
+    global world_signals
+    while True:
+        signals = []
+
+        # 1. GDELT: Latest financial headlines with tone scoring
+        try:
+            art_resp = requests.get("https://api.gdeltproject.org/api/v2/doc/doc",
+                params={"query": "market economy finance oil gold conflict trade tariff",
+                        "mode": "ArtList", "timespan": "12h", "maxrecords": 30, "format": "json"}, timeout=15)
+            articles = art_resp.json().get("articles", [])
+            for art in articles:
+                title = art.get("title", "").lower()
+                tone = art.get("tone", 0)
+                # Match to sectors
+                for sector, config in SECTOR_SENSITIVITY.items():
+                    if any(kw in title for kw in config["keywords"]):
+                        direction = "defensive" if tone < -3 else "growth" if tone > 3 else "neutral"
+                        signals.append({
+                            "source": "GDELT",
+                            "sector": sector,
+                            "tickers": config["tickers"],
+                            "direction": direction,
+                            "tone": round(tone, 1),
+                            "headline": art.get("title", "")[:100],
+                            "timestamp": art.get("seendate", ""),
+                        })
+        except Exception as e:
+            print(f"[Signals] GDELT fetch failed: {e}")
+
+        # 2. USGS: Recent significant earthquakes (infrastructure/supply chain risk)
+        try:
+            eq_resp = requests.get("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.geojson", timeout=10)
+            quakes = eq_resp.json().get("features", [])
+            for q in quakes[:3]:
+                props = q.get("properties", {})
+                mag = props.get("mag", 0)
+                place = props.get("place", "")
+                if mag >= 5:
+                    signals.append({
+                        "source": "USGS",
+                        "sector": "trade",
+                        "tickers": ["PDBC", "GLDM"],
+                        "direction": "defensive",
+                        "tone": round(-mag, 1),
+                        "headline": f"M{mag:.1f} earthquake: {place}",
+                        "timestamp": datetime.fromtimestamp(props.get("time", 0) / 1000, tz=timezone.utc).isoformat(),
+                    })
+        except Exception:
+            pass
+
+        # 3. Commodity prices from Yahoo Finance (oil, gold spot changes)
+        try:
+            commodity_tickers = {"GC=F": "Gold", "CL=F": "Crude Oil", "SI=F": "Silver", "NG=F": "Natural Gas"}
+            cdata = yf.download(list(commodity_tickers.keys()), period="2d", auto_adjust=True, progress=False)["Close"]
+            for sym, name in commodity_tickers.items():
+                try:
+                    col = cdata[sym].dropna()
+                    if len(col) >= 2:
+                        pct = ((float(col.iloc[-1]) - float(col.iloc[-2])) / float(col.iloc[-2])) * 100
+                        if abs(pct) > 1:  # Only significant moves
+                            sector = "energy" if sym in ["CL=F", "NG=F"] else "metals"
+                            signals.append({
+                                "source": "Yahoo Finance",
+                                "sector": sector,
+                                "tickers": SECTOR_SENSITIVITY[sector]["tickers"],
+                                "direction": "growth" if pct > 0 else "defensive",
+                                "tone": round(pct, 1),
+                                "headline": f"{name} {'+' if pct > 0 else ''}{pct:.1f}% today",
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                            })
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # 4. VIX from Yahoo Finance (fear gauge)
+        try:
+            vix_data = yf.download("^VIX", period="2d", auto_adjust=True, progress=False)["Close"].dropna()
+            if len(vix_data) >= 1:
+                vix_val = float(vix_data.iloc[-1])
+                if vix_val > 25:
+                    signals.append({
+                        "source": "Yahoo Finance",
+                        "sector": "equity",
+                        "tickers": ["GLDM", "AGG", "DBMF"],
+                        "direction": "defensive",
+                        "tone": round(-vix_val / 5, 1),
+                        "headline": f"VIX at {vix_val:.1f} — elevated volatility",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                elif vix_val < 15:
+                    signals.append({
+                        "source": "Yahoo Finance",
+                        "sector": "equity",
+                        "tickers": ["SPY", "VTI", "ARCC"],
+                        "direction": "growth",
+                        "tone": round(3, 1),
+                        "headline": f"VIX at {vix_val:.1f} — low volatility, risk-on",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+        except Exception:
+            pass
+
+        # Deduplicate and keep the strongest signals
+        seen = set()
+        unique = []
+        for s in signals:
+            key = s["headline"][:50]
+            if key not in seen:
+                seen.add(key)
+                unique.append(s)
+        unique.sort(key=lambda s: abs(s["tone"]), reverse=True)
+
+        with world_signals_lock:
+            world_signals = {
+                "signals": unique[:20],
+                "last_updated": datetime.now(timezone.utc).isoformat(),
+                "defensive_count": sum(1 for s in unique if s["direction"] == "defensive"),
+                "growth_count": sum(1 for s in unique if s["direction"] == "growth"),
+                "neutral_count": sum(1 for s in unique if s["direction"] == "neutral"),
+            }
+
+        print(f"[Signals] Collected {len(unique)} signals: {world_signals['defensive_count']} defensive, {world_signals['growth_count']} growth, {world_signals['neutral_count']} neutral")
+        time.sleep(180)  # Refresh every 3 minutes
+
+
+signals_thread = threading.Thread(target=collect_world_signals, daemon=True)
+signals_thread.start()
 
 
 def propose_change(current_weights: dict, experiment_history: list) -> tuple[dict, str]:
@@ -275,6 +424,35 @@ def propose_change(current_weights: dict, experiment_history: list) -> tuple[dic
         for t in ALL_TICKERS:
             w[t] = max(0.01, w.get(t, 0) + random.uniform(-0.02, 0.02))
         desc = "Random perturbation across all positions"
+
+    elif strategy == "world_signal":
+        # React to live world events
+        with world_signals_lock:
+            sigs = world_signals.get("signals", [])
+        if sigs:
+            sig = random.choice(sigs[:10])  # Pick from top 10 strongest signals
+            shift = round(random.uniform(0.02, 0.04), 2)
+            if sig["direction"] == "defensive":
+                for t in sig["tickers"]:
+                    if t in w:
+                        w[t] += shift / len(sig["tickers"])
+                src = random.choice([t for t in GROWTH if t not in sig["tickers"] and w.get(t, 0) > 0.03])
+                w[src] = max(0.01, w[src] - shift)
+                desc = f"World signal [{sig['source']}]: {sig['headline'][:50]} → +{shift*100:.0f}% {','.join(sig['tickers'])}"
+            elif sig["direction"] == "growth":
+                for t in sig["tickers"]:
+                    if t in w:
+                        w[t] += shift / len(sig["tickers"])
+                src = random.choice([t for t in DEFENSIVE if t not in sig["tickers"] and w.get(t, 0) > 0.03])
+                w[src] = max(0.01, w[src] - shift)
+                desc = f"World signal [{sig['source']}]: {sig['headline'][:50]} → +{shift*100:.0f}% {','.join(sig['tickers'])}"
+            else:
+                desc = f"World signal [{sig['source']}]: {sig['headline'][:50]} (neutral — no action)"
+        else:
+            # Fallback to random perturbation if no signals yet
+            for t in ALL_TICKERS:
+                w[t] = max(0.01, w.get(t, 0) + random.uniform(-0.02, 0.02))
+            desc = "No world signals yet — random perturbation"
 
     else:  # concentrate
         best_ticker = max(w, key=lambda t: w.get(t, 0))
@@ -551,6 +729,13 @@ def get_experiments():
         "currentWeights": copy.deepcopy(live_weights),
         "experiments": exps[-50:],  # Last 50
     }
+
+
+@app.get("/api/signals")
+def get_signals():
+    """Live world event signals feeding the portfolio optimizer."""
+    with world_signals_lock:
+        return copy.deepcopy(world_signals)
 
 
 @app.get("/api/health")
