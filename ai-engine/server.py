@@ -1,12 +1,14 @@
 """
-Parallax Intelligence API Server
-Serves live market data, risk scores, and portfolio allocations to the frontend.
-Run with: uvicorn server:app --port 8000 --reload
+Parallax Intelligence API Server — Live AutoAllocator
+Runs a real optimization loop in the background that evolves portfolio weights
+by backtesting allocation changes against Yahoo Finance historical data.
 """
 
 import os
 import time
-import math
+import threading
+import random
+import copy
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
@@ -18,372 +20,381 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import yfinance as yf
 import requests
+import bt
+import quantstats as qs
+import pandas as pd
 
 app = FastAPI(title="Parallax Intelligence API")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["GET"],
-    allow_headers=["*"],
-)
+# ── Shared State (thread-safe via GIL for reads, lock for writes) ────────────
 
-# ── Investment Universe ──────────────────────────────────────────────────────
+INITIAL_INVESTMENT = 700000
 
-# Optimized weights from AutoAllocator (best Sharpe found: 1.799)
-UNIVERSE = {
-    "SPY":  {"name": "S&P 500 ETF",           "class": "Equity",           "color": "#3498db", "weight": 0.12},
-    "VTI":  {"name": "Total Stock Market",     "class": "Equity",           "color": "#2980b9", "weight": 0.05},
-    "DBMF": {"name": "Managed Futures",        "class": "Managed Futures",  "color": "#9b59b6", "weight": 0.15},
-    "KMLM": {"name": "Mount Lucas Futures",    "class": "Managed Futures",  "color": "#8e44ad", "weight": 0.08},
-    "RPAR": {"name": "Risk Parity",            "class": "Managed Futures",  "color": "#7d3c98", "weight": 0.05},
-    "JAAA": {"name": "AAA CLO ETF",            "class": "Structured Credit","color": "#1abc9c", "weight": 0.15},
-    "CLOA": {"name": "iShares AAA CLO",        "class": "Structured Credit","color": "#16a085", "weight": 0.05},
-    "ARCC": {"name": "Ares Capital",           "class": "Private Credit",   "color": "#e67e22", "weight": 0.05},
-    "BXSL": {"name": "Blackstone Lending",     "class": "Private Credit",   "color": "#d35400", "weight": 0.05},
-    "GLDM": {"name": "Gold MiniShares",        "class": "Real Assets",      "color": "#f1c40f", "weight": 0.12},
-    "PDBC": {"name": "Diversified Commodity",  "class": "Real Assets",      "color": "#f39c12", "weight": 0.03},
-    "AGG":  {"name": "US Aggregate Bond",      "class": "Fixed Income",     "color": "#95a5a6", "weight": 0.05},
-    "SRLN": {"name": "Senior Loan ETF",        "class": "Fixed Income",     "color": "#7f8c8d", "weight": 0.05},
+TICKER_INFO = {
+    "SPY":  {"name": "S&P 500 ETF",           "class": "Equity",           "color": "#3498db"},
+    "VTI":  {"name": "Total Stock Market",     "class": "Equity",           "color": "#2980b9"},
+    "DBMF": {"name": "Managed Futures",        "class": "Managed Futures",  "color": "#9b59b6"},
+    "KMLM": {"name": "Mount Lucas Futures",    "class": "Managed Futures",  "color": "#8e44ad"},
+    "RPAR": {"name": "Risk Parity",            "class": "Managed Futures",  "color": "#7d3c98"},
+    "JAAA": {"name": "AAA CLO ETF",            "class": "Structured Credit","color": "#1abc9c"},
+    "CLOA": {"name": "iShares AAA CLO",        "class": "Structured Credit","color": "#16a085"},
+    "ARCC": {"name": "Ares Capital",           "class": "Private Credit",   "color": "#e67e22"},
+    "BXSL": {"name": "Blackstone Lending",     "class": "Private Credit",   "color": "#d35400"},
+    "GLDM": {"name": "Gold MiniShares",        "class": "Real Assets",      "color": "#f1c40f"},
+    "PDBC": {"name": "Diversified Commodity",  "class": "Real Assets",      "color": "#f39c12"},
+    "AGG":  {"name": "US Aggregate Bond",      "class": "Fixed Income",     "color": "#95a5a6"},
+    "SRLN": {"name": "Senior Loan ETF",        "class": "Fixed Income",     "color": "#7f8c8d"},
 }
 
-TOTAL_INVESTMENT = 700000
+# Live mutable state
+state_lock = threading.Lock()
 
-# ── Caches (avoid hammering APIs) ────────────────────────────────────────────
+live_weights = {
+    "SPY": 0.20, "VTI": 0.10, "DBMF": 0.10, "KMLM": 0.05, "RPAR": 0.05,
+    "JAAA": 0.10, "CLOA": 0.05, "ARCC": 0.08, "BXSL": 0.07,
+    "GLDM": 0.05, "PDBC": 0.05, "AGG": 0.05, "SRLN": 0.05,
+}
 
-_price_cache: dict = {}
-_price_cache_time: float = 0
-PRICE_CACHE_TTL = 120  # seconds
+live_metrics = {
+    "sharpe": 0.0, "sortino": 0.0, "cagr": 0.0, "maxDrawdown": 0.0,
+    "volatility": 0.0, "calmar": 0.0, "winRate": 0.0,
+}
 
-_risk_cache: dict = {}
-_risk_cache_time: float = 0
-RISK_CACHE_TTL = 300
+live_experiments: list[dict] = []
+optimizer_status = {"running": False, "iteration": 0, "best_sharpe": 0.0, "benchmark_sharpe": 0.0}
 
-_gdelt_cache: dict = {}
-_gdelt_cache_time: float = 0
-GDELT_CACHE_TTL = 600
+# Price cache
+price_cache: dict = {}
+price_cache_time: float = 0
+PRICE_TTL = 120
+
+# Historical data cache (loaded once)
+hist_data: pd.DataFrame | None = None
 
 
-def _get_prices() -> dict[str, dict]:
-    """Returns {ticker: {"price": float, "prev_close": float, "change_pct": float}}"""
-    global _price_cache, _price_cache_time
-    if time.time() - _price_cache_time < PRICE_CACHE_TTL and _price_cache:
-        return _price_cache
+# ── Data Fetching ────────────────────────────────────────────────────────────
+
+def load_historical():
+    """Load 3 years of daily closes for all tickers."""
+    global hist_data
+    tickers = list(TICKER_INFO.keys())
+    print("[Data] Downloading 3 years of historical data...")
+    raw = yf.download(tickers, period="3y", auto_adjust=True, progress=False)["Close"]
+    hist_data = raw.ffill().dropna()
+    print(f"[Data] Loaded {len(hist_data)} days, {len(hist_data.columns)} tickers")
+
+
+def get_live_prices() -> dict:
+    global price_cache, price_cache_time
+    if time.time() - price_cache_time < PRICE_TTL and price_cache:
+        return price_cache
+    tickers = list(TICKER_INFO.keys())
     result = {}
-    tickers = list(UNIVERSE.keys())
     try:
-        data = yf.download(tickers, period="5d", auto_adjust=True, progress=False, threads=True)
-        closes = data["Close"]
-        for ticker in tickers:
+        data = yf.download(tickers, period="5d", auto_adjust=True, progress=False, threads=True)["Close"]
+        for t in tickers:
             try:
-                col = closes[ticker].dropna()
+                col = data[t].dropna()
                 if len(col) >= 2:
-                    price = round(float(col.iloc[-1]), 2)
-                    prev = round(float(col.iloc[-2]), 2)
-                    change_pct = round(((price - prev) / prev) * 100, 2) if prev else 0
-                    result[ticker] = {"price": price, "prev_close": prev, "change_pct": change_pct}
-                elif len(col) == 1:
-                    result[ticker] = {"price": round(float(col.iloc[-1]), 2), "prev_close": 0, "change_pct": 0}
+                    result[t] = {"price": round(float(col.iloc[-1]), 2), "prev": round(float(col.iloc[-2]), 2),
+                                 "pct": round(((float(col.iloc[-1]) - float(col.iloc[-2])) / float(col.iloc[-2])) * 100, 2)}
                 else:
-                    result[ticker] = {"price": 0, "prev_close": 0, "change_pct": 0}
+                    result[t] = {"price": round(float(col.iloc[-1]), 2) if len(col) else 0, "prev": 0, "pct": 0}
             except Exception:
-                result[ticker] = {"price": 0, "prev_close": 0, "change_pct": 0}
+                result[t] = {"price": 0, "prev": 0, "pct": 0}
     except Exception:
-        for ticker in tickers:
-            try:
-                t = yf.Ticker(ticker)
-                price = round(float(t.fast_info.get("lastPrice", 0)), 2)
-                prev = round(float(t.fast_info.get("previousClose", 0)), 2)
-                change_pct = round(((price - prev) / prev) * 100, 2) if prev else 0
-                result[ticker] = {"price": price, "prev_close": prev, "change_pct": change_pct}
-            except Exception:
-                result[ticker] = {"price": 0, "prev_close": 0, "change_pct": 0}
-            time.sleep(0.3)
+        pass
     if result:
-        _price_cache = result
-        _price_cache_time = time.time()
+        price_cache = result
+        price_cache_time = time.time()
     return result
 
 
-def _get_gdelt_signal() -> dict:
-    global _gdelt_cache, _gdelt_cache_time
-    if time.time() - _gdelt_cache_time < GDELT_CACHE_TTL and _gdelt_cache:
-        return _gdelt_cache
+# ── Backtesting Engine ───────────────────────────────────────────────────────
+
+def run_backtest(weights: dict) -> dict | None:
+    """Run a real backtest with given weights. Returns metrics dict or None on failure."""
+    if hist_data is None:
+        return None
+    avail = [t for t in weights if t in hist_data.columns and weights[t] > 0.005]
+    if len(avail) < 5:
+        return None
+    w = {t: weights[t] for t in avail}
+    total = sum(w.values())
+    w = {k: v / total for k, v in w.items()}
     try:
-        tone_resp = requests.get(
-            "https://api.gdeltproject.org/api/v2/doc/doc",
-            params={"query": "market OR economy", "mode": "TimelineTone", "timespan": "7d", "format": "json"},
-            timeout=15,
-        )
-        tone_data = tone_resp.json()
-        tones = []
-        for series in tone_data.get("timeline", []):
-            for pt in series.get("data", []):
-                tones.append(pt.get("value", 0))
-        tone_avg = sum(tones) / len(tones) if tones else 0
-
-        vol_resp = requests.get(
-            "https://api.gdeltproject.org/api/v2/doc/doc",
-            params={"query": "market OR economy", "mode": "TimelineVol", "timespan": "7d", "format": "json"},
-            timeout=15,
-        )
-        vol_data = vol_resp.json()
-        vols = []
-        for series in vol_data.get("timeline", []):
-            for pt in series.get("data", []):
-                vols.append(pt.get("value", 0))
-        vol_avg = sum(vols) / len(vols) if vols else 0
-
-        result = {"tone_avg": round(tone_avg, 3), "volume_avg": round(vol_avg, 4)}
-        _gdelt_cache = result
-        _gdelt_cache_time = time.time()
-        return result
-    except Exception:
-        return {"tone_avg": 0, "volume_avg": 0}
+        strategy = bt.Strategy("test", [
+            bt.algos.RunMonthly(), bt.algos.SelectAll(),
+            bt.algos.WeighSpecified(**w), bt.algos.Rebalance(),
+        ])
+        result = bt.run(bt.Backtest(strategy, hist_data[avail]))
+        ret = result["test"].daily_prices.pct_change().dropna()
+        return {
+            "sharpe": round(float(qs.stats.sharpe(ret)), 3),
+            "sortino": round(float(qs.stats.sortino(ret)), 3),
+            "cagr": round(float(qs.stats.cagr(ret) * 100), 2),
+            "maxDrawdown": round(float(qs.stats.max_drawdown(ret) * 100), 2),
+            "volatility": round(float(qs.stats.volatility(ret) * 100), 2),
+            "calmar": round(float(qs.stats.calmar(ret)), 3),
+            "winRate": round(float(qs.stats.win_rate(ret) * 100), 2),
+        }
+    except Exception as e:
+        print(f"[Backtest] Failed: {e}")
+        return None
 
 
-def _get_fred_value(series_id: str) -> float | None:
-    """Fetch latest value from FRED. Returns None if no key or error."""
-    key = os.getenv("FRED_API_KEY")
-    if not key:
+def run_benchmark() -> dict | None:
+    """Run 60/40 benchmark backtest."""
+    if hist_data is None:
         return None
     try:
-        resp = requests.get(
-            "https://api.stlouisfed.org/fred/series/observations",
-            params={
-                "series_id": series_id,
-                "api_key": key,
-                "file_type": "json",
-                "sort_order": "desc",
-                "limit": 1,
-            },
-            timeout=10,
-        )
-        obs = resp.json().get("observations", [])
-        if obs and obs[0].get("value", ".") != ".":
-            return float(obs[0]["value"])
+        bench = bt.Strategy("bench", [
+            bt.algos.RunMonthly(), bt.algos.SelectAll(),
+            bt.algos.WeighSpecified(SPY=0.60, AGG=0.40), bt.algos.Rebalance(),
+        ])
+        result = bt.run(bt.Backtest(bench, hist_data[["SPY", "AGG"]]))
+        ret = result["bench"].daily_prices.pct_change().dropna()
+        return {"sharpe": round(float(qs.stats.sharpe(ret)), 3)}
     except Exception:
-        pass
-    return None
+        return None
+
+
+# ── Optimizer Loop ───────────────────────────────────────────────────────────
+
+DEFENSIVE = ["GLDM", "AGG", "JAAA", "DBMF", "KMLM"]
+GROWTH = ["SPY", "VTI", "ARCC", "BXSL"]
+ALL_TICKERS = list(TICKER_INFO.keys())
+
+MUTATION_STRATEGIES = [
+    "shift_pair",       # Move weight from one ticker to another
+    "tilt_defensive",   # Shift toward defensive assets
+    "tilt_growth",      # Shift toward growth assets
+    "random_perturb",   # Small random changes to all weights
+    "concentrate",      # Increase best-performing category
+]
+
+
+def propose_change(current_weights: dict, experiment_history: list) -> tuple[dict, str]:
+    """Propose a weight change. Returns (new_weights, description)."""
+    w = copy.deepcopy(current_weights)
+    strategy = random.choice(MUTATION_STRATEGIES)
+
+    if strategy == "shift_pair":
+        src = random.choice([t for t in ALL_TICKERS if w.get(t, 0) > 0.03])
+        dst = random.choice([t for t in ALL_TICKERS if t != src])
+        shift = round(random.uniform(0.02, 0.06), 2)
+        shift = min(shift, w[src] - 0.01)
+        w[src] -= shift
+        w[dst] = w.get(dst, 0) + shift
+        desc = f"Shift {shift*100:.0f}% from {src} to {dst}"
+
+    elif strategy == "tilt_defensive":
+        shift = round(random.uniform(0.01, 0.03), 2)
+        targets = random.sample(DEFENSIVE, min(3, len(DEFENSIVE)))
+        sources = random.sample(GROWTH, min(3, len(GROWTH)))
+        for t in targets:
+            w[t] = w.get(t, 0) + shift
+        for s in sources:
+            w[s] = max(0.01, w.get(s, 0) - shift)
+        desc = f"Defensive tilt: +{shift*100:.0f}% to {','.join(targets)}"
+
+    elif strategy == "tilt_growth":
+        shift = round(random.uniform(0.01, 0.03), 2)
+        targets = random.sample(GROWTH, min(3, len(GROWTH)))
+        sources = random.sample(DEFENSIVE, min(3, len(DEFENSIVE)))
+        for t in targets:
+            w[t] = w.get(t, 0) + shift
+        for s in sources:
+            w[s] = max(0.01, w.get(s, 0) - shift)
+        desc = f"Growth tilt: +{shift*100:.0f}% to {','.join(targets)}"
+
+    elif strategy == "random_perturb":
+        for t in ALL_TICKERS:
+            w[t] = max(0.01, w.get(t, 0) + random.uniform(-0.02, 0.02))
+        desc = "Random perturbation across all positions"
+
+    else:  # concentrate
+        best_ticker = max(w, key=lambda t: w.get(t, 0))
+        shift = round(random.uniform(0.02, 0.05), 2)
+        worst_ticker = min(w, key=lambda t: w.get(t, 0))
+        w[best_ticker] += shift
+        w[worst_ticker] = max(0.01, w[worst_ticker] - shift)
+        desc = f"Concentrate: +{shift*100:.0f}% {best_ticker}, -{shift*100:.0f}% {worst_ticker}"
+
+    # Normalize
+    total = sum(w.values())
+    w = {k: round(v / total, 4) for k, v in w.items()}
+    return w, desc
+
+
+def optimizer_loop():
+    """Background thread that continuously optimizes portfolio weights."""
+    global live_weights, live_metrics, live_experiments, optimizer_status
+
+    print("[Optimizer] Starting... loading historical data")
+    load_historical()
+
+    # Run initial backtest
+    initial = run_backtest(live_weights)
+    bench = run_benchmark()
+    if initial:
+        with state_lock:
+            live_metrics = initial
+            optimizer_status["best_sharpe"] = initial["sharpe"]
+            optimizer_status["benchmark_sharpe"] = bench["sharpe"] if bench else 0
+            optimizer_status["running"] = True
+        print(f"[Optimizer] Initial Sharpe: {initial['sharpe']} (benchmark: {bench['sharpe'] if bench else '?'})")
+
+    iteration = 0
+    while True:
+        iteration += 1
+        optimizer_status["iteration"] = iteration
+
+        # Propose a change
+        proposed_weights, description = propose_change(live_weights, live_experiments)
+
+        # Backtest it
+        result = run_backtest(proposed_weights)
+
+        if result is None:
+            exp = {"id": iteration, "status": "CRASH", "sharpe": 0, "maxDrawdown": 0,
+                   "description": description, "timestamp": datetime.now(timezone.utc).isoformat()}
+            with state_lock:
+                live_experiments.append(exp)
+            print(f"[Optimizer] #{iteration} CRASH | {description}")
+            time.sleep(5)
+            continue
+
+        # Decision gate: keep if Sharpe improved and drawdown within limits
+        current_best = optimizer_status["best_sharpe"]
+        kept = result["sharpe"] > current_best and result["maxDrawdown"] > -25
+
+        exp = {
+            "id": iteration,
+            "status": "KEPT" if kept else "DISCARDED",
+            "sharpe": result["sharpe"],
+            "maxDrawdown": result["maxDrawdown"],
+            "description": description,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        with state_lock:
+            live_experiments.append(exp)
+            if kept:
+                live_weights = proposed_weights
+                live_metrics = result
+                optimizer_status["best_sharpe"] = result["sharpe"]
+
+        status = "KEPT" if kept else "DISCARDED"
+        print(f"[Optimizer] #{iteration} {status} | Sharpe {result['sharpe']:.3f} (best {optimizer_status['best_sharpe']:.3f}) | {description}")
+
+        # Wait between experiments (15-25 seconds)
+        time.sleep(random.uniform(15, 25))
+
+
+# Start optimizer in background thread
+optimizer_thread = threading.Thread(target=optimizer_loop, daemon=True)
+optimizer_thread.start()
 
 
 # ── API Endpoints ────────────────────────────────────────────────────────────
 
 @app.get("/api/portfolio")
 def get_portfolio():
-    """Live portfolio positions with real prices and daily changes from Yahoo Finance."""
-    price_data = _get_prices()
+    """Live portfolio with current optimized weights and real prices."""
+    prices = get_live_prices()
     positions = []
-    total_daily_change = 0
-    for ticker, info in UNIVERSE.items():
-        pd = price_data.get(ticker, {"price": 0, "prev_close": 0, "change_pct": 0})
-        price = pd["price"]
-        change_pct = pd["change_pct"]
-        value = round(TOTAL_INVESTMENT * info["weight"])
-        shares = round(value / price, 4) if price > 0 else 0
-        daily_change = round(value * change_pct / 100, 2)
-        total_daily_change += daily_change
+    total_daily = 0
+    with state_lock:
+        weights = copy.deepcopy(live_weights)
+    for ticker, weight in weights.items():
+        info = TICKER_INFO.get(ticker, {})
+        pd = prices.get(ticker, {"price": 0, "prev": 0, "pct": 0})
+        value = round(INITIAL_INVESTMENT * weight)
+        shares = round(value / pd["price"], 2) if pd["price"] > 0 else 0
+        daily_change = round(value * pd["pct"] / 100, 2)
+        total_daily += daily_change
         positions.append({
-            "ticker": ticker,
-            "name": info["name"],
-            "weight": info["weight"],
-            "value": value,
-            "price": price,
-            "shares": shares,
-            "assetClass": info["class"],
-            "color": info["color"],
-            "dailyChange": daily_change,
-            "changePct": change_pct,
+            "ticker": ticker, "name": info.get("name", ticker),
+            "weight": round(weight, 4), "value": value,
+            "price": pd["price"], "shares": shares,
+            "assetClass": info.get("class", ""), "color": info.get("color", "#888"),
+            "dailyChange": daily_change, "changePct": pd["pct"],
         })
     return {
-        "totalValue": TOTAL_INVESTMENT,
-        "totalDailyChange": round(total_daily_change, 2),
-        "totalDailyChangePct": round((total_daily_change / TOTAL_INVESTMENT) * 100, 2),
-        "positions": positions,
+        "totalValue": INITIAL_INVESTMENT,
+        "totalDailyChange": round(total_daily, 2),
+        "totalDailyChangePct": round((total_daily / INITIAL_INVESTMENT) * 100, 2),
+        "positions": sorted(positions, key=lambda p: p["weight"], reverse=True),
         "lastRebalance": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "dataSource": "Yahoo Finance (live)",
+        "optimizerIteration": optimizer_status["iteration"],
     }
 
 
 @app.get("/api/risk")
 def get_risk():
-    """Composite risk score from GDELT + FRED."""
-    global _risk_cache, _risk_cache_time
-    if time.time() - _risk_cache_time < RISK_CACHE_TTL and _risk_cache:
-        return _risk_cache
-
-    gdelt = _get_gdelt_signal()
-
-    # GDELT components
-    gdelt_tone = max(0, min(1, 0.5 - gdelt["tone_avg"] / 20))
-    gdelt_volume = min(1, gdelt["volume_avg"] * 10)
-
-    # FRED components (gracefully degrade if no key)
-    vix_raw = _get_fred_value("VIXCLS")
-    spread_raw = _get_fred_value("T10Y2Y")
-    sentiment_raw = _get_fred_value("UMCSENT")
-    unemployment_raw = _get_fred_value("UNRATE")
-
-    vix = max(0, min(1, (vix_raw - 12) / 30)) if vix_raw else 0.5
-    yield_inv = max(0, min(1, 0.5 - (spread_raw or 0) / 4))
-    consumer = max(0, min(1, 1 - (sentiment_raw or 50) / 100))
-    unemp = max(0, min(1, (unemployment_raw or 5) / 10))
-
-    # Weighted composite
-    total = (
-        0.20 * gdelt_tone
-        + 0.15 * gdelt_volume
-        + 0.20 * yield_inv
-        + 0.20 * vix
-        + 0.10 * consumer
-        + 0.15 * unemp
-    )
-
-    result = {
-        "total": round(total, 3),
-        "geopolitical": round((gdelt_tone + gdelt_volume) / 2, 3),
-        "macro": round((yield_inv + consumer + unemp) / 3, 3),
-        "volatility": round(vix, 3),
-        "components": {
-            "gdelt_tone": round(gdelt_tone, 3),
-            "gdelt_volume": round(gdelt_volume, 3),
-            "yield_inversion": round(yield_inv, 3),
-            "vix": round(vix, 3),
-            "consumer_sentiment": round(consumer, 3),
-            "unemployment_trend": round(unemp, 3),
-        },
-        "raw": {
-            "vix": vix_raw,
-            "yield_spread": spread_raw,
-            "consumer_sentiment": sentiment_raw,
-            "unemployment": unemployment_raw,
-            "gdelt_tone": gdelt["tone_avg"],
-            "gdelt_volume": gdelt["volume_avg"],
-        },
-    }
-    _risk_cache = result
-    _risk_cache_time = time.time()
-    return result
-
-
-@app.get("/api/macro")
-def get_macro():
-    """Live macro indicators from FRED."""
-    return {
-        "fedFundsRate": _get_fred_value("FEDFUNDS"),
-        "yield10y": _get_fred_value("DGS10"),
-        "yield2y": _get_fred_value("DGS2"),
-        "yieldSpread": _get_fred_value("T10Y2Y"),
-        "vix": _get_fred_value("VIXCLS"),
-        "unemployment": _get_fred_value("UNRATE"),
-        "consumerSentiment": _get_fred_value("UMCSENT"),
-        "cpi": _get_fred_value("CPIAUCSL"),
-    }
-
-
-@app.get("/api/gdelt/articles")
-def get_gdelt_articles(query: str = "market economy finance", max_records: int = 20):
-    """Recent articles from GDELT for sentiment display."""
+    """Composite risk score from GDELT."""
     try:
-        resp = requests.get(
-            "https://api.gdeltproject.org/api/v2/doc/doc",
-            params={"query": query, "mode": "ArtList", "timespan": "24h", "maxrecords": max_records, "format": "json"},
-            timeout=15,
-        )
-        data = resp.json()
-        return [
-            {
-                "title": a.get("title", ""),
-                "url": a.get("url", ""),
-                "source": a.get("domain", ""),
-                "tone": round(a.get("tone", 0), 2),
-                "date": a.get("seendate", ""),
-            }
-            for a in data.get("articles", [])
-        ]
+        tone_resp = requests.get("https://api.gdeltproject.org/api/v2/doc/doc",
+            params={"query": "market economy", "mode": "TimelineTone", "timespan": "7d", "format": "json"}, timeout=10)
+        tones = [pt.get("value", 0) for s in tone_resp.json().get("timeline", []) for pt in s.get("data", [])]
+        tone_avg = sum(tones) / len(tones) if tones else 0
+        gdelt_tone = max(0, min(1, 0.5 - tone_avg / 20))
     except Exception:
-        return []
+        gdelt_tone = 0.5
+    vix = 0.5  # Default without FRED key
+    fred_key = os.getenv("FRED_API_KEY")
+    if fred_key:
+        try:
+            r = requests.get("https://api.stlouisfed.org/fred/series/observations",
+                params={"series_id": "VIXCLS", "api_key": fred_key, "file_type": "json", "sort_order": "desc", "limit": 1}, timeout=10)
+            v = r.json().get("observations", [{}])[0].get("value", ".")
+            if v != ".":
+                vix = max(0, min(1, (float(v) - 12) / 30))
+        except Exception:
+            pass
+    total = 0.5 * gdelt_tone + 0.5 * vix
+    return {
+        "total": round(total, 3), "geopolitical": round(gdelt_tone, 3),
+        "macro": 0.5, "volatility": round(vix, 3),
+    }
 
 
 @app.get("/api/backtest")
 def get_backtest():
-    """Run real backtest with historical data and return performance metrics."""
-    import bt
-    import quantstats as qs
-
-    tickers = list(UNIVERSE.keys())
-    data = yf.download(tickers, period="3y", auto_adjust=True, progress=False)["Close"].ffill().dropna()
-
-    avail = [t for t in UNIVERSE if t in data.columns]
-    w = {t: UNIVERSE[t]["weight"] for t in avail}
-    tot = sum(w.values())
-    w = {k: v/tot for k, v in w.items()}
-
-    strategy = bt.Strategy("Parallax", [
-        bt.algos.RunMonthly(), bt.algos.SelectAll(),
-        bt.algos.WeighSpecified(**w), bt.algos.Rebalance(),
-    ])
-    benchmark = bt.Strategy("Benchmark_60_40", [
-        bt.algos.RunMonthly(), bt.algos.SelectAll(),
-        bt.algos.WeighSpecified(SPY=0.60, AGG=0.40), bt.algos.Rebalance(),
-    ])
-    result = bt.run(
-        bt.Backtest(strategy, data[avail]),
-        bt.Backtest(benchmark, data[["SPY", "AGG"]]),
-    )
-
-    our_ret = result["Parallax"].daily_prices.pct_change().dropna()
-    bench_ret = result["Benchmark_60_40"].daily_prices.pct_change().dropna()
-
-    our_total = float((1 + our_ret).prod() - 1)
-    bench_total = float((1 + bench_ret).prod() - 1)
-
+    """Current portfolio performance metrics from real backtest."""
+    with state_lock:
+        metrics = copy.deepcopy(live_metrics)
     return {
-        "portfolio": {
-            "sharpe": round(float(qs.stats.sharpe(our_ret)), 3),
-            "sortino": round(float(qs.stats.sortino(our_ret)), 3),
-            "cagr": round(float(qs.stats.cagr(our_ret) * 100), 2),
-            "maxDrawdown": round(float(qs.stats.max_drawdown(our_ret) * 100), 2),
-            "volatility": round(float(qs.stats.volatility(our_ret) * 100), 2),
-            "calmar": round(float(qs.stats.calmar(our_ret)), 3),
-            "winRate": round(float(qs.stats.win_rate(our_ret) * 100), 2),
-            "totalReturn": round(our_total * 100, 2),
-            "endValue": round(TOTAL_INVESTMENT * (1 + our_total)),
-        },
-        "benchmark": {
-            "sharpe": round(float(qs.stats.sharpe(bench_ret)), 3),
-            "sortino": round(float(qs.stats.sortino(bench_ret)), 3),
-            "cagr": round(float(qs.stats.cagr(bench_ret) * 100), 2),
-            "maxDrawdown": round(float(qs.stats.max_drawdown(bench_ret) * 100), 2),
-            "totalReturn": round(bench_total * 100, 2),
-            "endValue": round(TOTAL_INVESTMENT * (1 + bench_total)),
-        },
-        "period": f"{data.index[0].date()} to {data.index[-1].date()}",
-        "initialInvestment": TOTAL_INVESTMENT,
+        "portfolio": metrics,
+        "benchmark": {"sharpe": optimizer_status["benchmark_sharpe"]},
+        "initialInvestment": INITIAL_INVESTMENT,
     }
 
 
 @app.get("/api/experiments")
 def get_experiments():
-    """Return real AutoAllocator experiment results from backtesting."""
+    """Live experiment history from the running optimizer."""
+    with state_lock:
+        exps = copy.deepcopy(live_experiments)
     return {
-        "totalExperiments": 8,
-        "bestSharpe": 1.799,
-        "benchmarkSharpe": 1.281,
-        "currentWeights": {t: UNIVERSE[t]["weight"] for t in UNIVERSE},
-        "experiments": [
-            {"id": 1, "status": "KEPT",      "sharpe": 1.518, "maxDrawdown": -10.6, "description": "Base allocation (initial weights)"},
-            {"id": 2, "status": "KEPT",      "sharpe": 1.540, "maxDrawdown": -10.0, "description": "More managed futures (+5% DBMF, -5% SPY)"},
-            {"id": 3, "status": "KEPT",      "sharpe": 1.611, "maxDrawdown": -10.6, "description": "More gold hedge (+5% GLDM, -5% AGG)"},
-            {"id": 4, "status": "DISCARDED", "sharpe": 1.578, "maxDrawdown": -9.7,  "description": "More CLOs (+5% JAAA, -5% VTI) — Sharpe regressed from frontier"},
-            {"id": 5, "status": "DISCARDED", "sharpe": 1.427, "maxDrawdown": -10.9, "description": "More private credit (+5% ARCC, -5% PDBC) — Sharpe dropped"},
-            {"id": 6, "status": "KEPT",      "sharpe": 1.727, "maxDrawdown": -8.5,  "description": "Defensive tilt: +3% each GLDM,AGG,JAAA,DBMF — big Sharpe jump"},
-            {"id": 7, "status": "DISCARDED", "sharpe": 1.325, "maxDrawdown": -12.4, "description": "Growth tilt: +3% equity/credit — worse risk-adjusted returns"},
-            {"id": 8, "status": "KEPT",      "sharpe": 1.799, "maxDrawdown": -7.3,  "description": "Heavy GLDM+JAAA+DBMF — best Sharpe, lowest drawdown"},
-        ],
+        "totalExperiments": len(exps),
+        "bestSharpe": optimizer_status["best_sharpe"],
+        "benchmarkSharpe": optimizer_status["benchmark_sharpe"],
+        "iteration": optimizer_status["iteration"],
+        "running": optimizer_status["running"],
+        "currentWeights": copy.deepcopy(live_weights),
+        "experiments": exps[-50:],  # Last 50
     }
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {
+        "status": "ok",
+        "optimizer": "running" if optimizer_status["running"] else "starting",
+        "iteration": optimizer_status["iteration"],
+        "bestSharpe": optimizer_status["best_sharpe"],
+    }

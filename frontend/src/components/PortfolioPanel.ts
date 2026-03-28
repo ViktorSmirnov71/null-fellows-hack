@@ -119,8 +119,14 @@ export class PortfolioPanel extends Panel {
     }
     this.render();
     this.setDataBadge(isLive ? 'live' : 'cached');
+    // Poll every 5 seconds for live updates from the optimizer
+    if (!this.pollTimer) {
+      this.pollTimer = setInterval(() => void this.fetchData(), 5000);
+    }
     return true;
   }
+
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
 
   private recalcValues(): void {
     const total = this.state.positions.reduce((s, p) => s + p.weight, 0);

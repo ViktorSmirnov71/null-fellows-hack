@@ -130,8 +130,13 @@ export class RiskDashboardPanel extends Panel {
     }
     this.render();
     this.setDataBadge(isLive ? 'live' : 'cached');
+    if (!this.pollTimer) {
+      this.pollTimer = setInterval(() => void this.fetchData(), 8000);
+    }
     return true;
   }
+
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
 
   private render(): void {
     const m = this.metrics;

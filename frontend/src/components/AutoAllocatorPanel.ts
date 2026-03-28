@@ -79,10 +79,18 @@ Adapted from <a href="https://github.com/karpathy/autoresearch" target="_blank">
     this.render();
     this.setCount(this.experiments.length);
     this.setDataBadge(isLive ? 'live' : 'cached');
-    this.startSimulation();
+    // Poll every 5 seconds for new experiments from the live optimizer
+    if (!this.pollTimer) {
+      this.pollTimer = setInterval(() => void this.fetchData(), 5000);
+    }
+    // Only start fake simulation if API is not available
+    if (!isLive) {
+      this.startSimulation();
+    }
     return true;
   }
 
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
   private liveRiskScore = 0.42;
 
   private startSimulation(): void {
