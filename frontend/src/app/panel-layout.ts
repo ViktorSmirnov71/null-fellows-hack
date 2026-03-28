@@ -380,9 +380,6 @@ export class PanelLayoutManager implements AppModule {
             <span class="site-footer-sub">See markets from every angle</span>
           </div>
         </div>
-        <nav>
-          <a href="https://github.com/ViktorSmirnov71/null-fellows-hack" target="_blank" rel="noopener">GitHub</a>
-        </nav>
         <span class="site-footer-copy">&copy; ${new Date().getFullYear()} Parallax Intelligence</span>
       </footer>
     `;
