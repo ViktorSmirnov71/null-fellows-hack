@@ -30,7 +30,7 @@ class ClaudeAnalyst:
         try:
             message = await self.client.messages.create(
                 model="claude-sonnet-4-6",
-                max_tokens=200,
+                max_tokens=300,
                 system=SYSTEM_PROMPT,
                 messages=[
                     {
@@ -46,8 +46,21 @@ class ClaudeAnalyst:
                         ),
                     }
                 ],
+                timeout=15.0,
             )
+
+            if not message.content:
+                logger.warning(f"Claude returned empty content for '{article.title[:50]}'")
+                return None
+
             return message.content[0].text
+
+        except anthropic.APITimeoutError:
+            logger.warning(f"Claude timed out for '{article.title[:50]}' — skipping")
+            return None
+        except anthropic.RateLimitError:
+            logger.warning("Claude rate limit hit — skipping deep analysis for this batch")
+            return None
         except Exception as e:
             logger.error(f"Claude analysis error: {e}")
             return None
