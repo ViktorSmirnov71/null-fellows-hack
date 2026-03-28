@@ -378,7 +378,7 @@ export class PanelLayoutManager implements AppModule {
         <div class="site-footer-brand">
           <div class="site-footer-brand-text">
             <span class="site-footer-name">PARALLAX INTELLIGENCE</span>
-            <span class="site-footer-sub">See markets from the angle others can't</span>
+            <span class="site-footer-sub">See markets from every angle</span>
           </div>
         </div>
         <nav>
