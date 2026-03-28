@@ -37,7 +37,14 @@ export class AutoAllocatorPanel extends Panel {
       id: 'auto-allocator',
       title: 'AutoAllocator',
       showCount: true,
-      infoTooltip: 'Autonomous portfolio optimization loop (autoresearch pattern). AI proposes allocation changes, backtests them, keeps improvements, discards regressions.',
+      infoTooltip: `<b>How the AutoAllocator works</b><br><br>
+Adapted from <a href="https://github.com/karpathy/autoresearch" target="_blank">karpathy/autoresearch</a>: an AI agent autonomously evolves portfolio weights.<br><br>
+<b>1. Risk Scoring</b> — 6 real-time signals (GDELT news tone, VIX, yield curve, consumer sentiment, unemployment, news volume) produce a composite risk score (0–100).<br><br>
+<b>2. Sentiment Cascade</b> — News flows through Groq (fast filter) → FinBERT (financial scoring) → Claude (deep analysis on high-conviction signals).<br><br>
+<b>3. The Loop</b> — The AI proposes ONE allocation change, backtests it over 5 years, and keeps it only if Sharpe ratio improves AND max drawdown stays above -25%. Otherwise it reverts. Repeats forever (~12 experiments/hour).<br><br>
+<b>4. Guardrails</b> — No position >25% or <1%, at least 8 positions, must beat 60/40 benchmark, max drawdown -25% hard stop.<br><br>
+<b>Fitness: Sharpe Ratio</b> (return per unit risk). Benchmark: 60/40 portfolio (Sharpe ~0.54).<br><br>
+<a href="https://github.com/ViktorSmirnov71/null-fellows-hack/blob/main/docs/autoallocator-philosophy.md" target="_blank" style="color:#3498db">Read the full philosophy →</a>`,
     });
     this.experiments = [...DEMO_EXPERIMENTS];
   }
