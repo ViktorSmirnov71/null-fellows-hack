@@ -446,6 +446,10 @@ const FINANCE_PANELS: Record<string, PanelConfig> = {
   'airline-intel': { name: 'Airline Intelligence', enabled: true, priority: 2 },
   'world-clock': { name: 'World Clock', enabled: true, priority: 2 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
+  // Null Fellows custom panels
+  portfolio: { name: 'Portfolio', enabled: true, priority: 1 },
+  'auto-allocator': { name: 'AutoAllocator', enabled: true, priority: 1 },
+  'risk-dashboard': { name: 'Risk Dashboard', enabled: true, priority: 1 },
 };
 
 const FINANCE_MAP_LAYERS: MapLayers = {
