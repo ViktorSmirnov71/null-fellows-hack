@@ -4279,7 +4279,7 @@ export class DeckGLMap {
 
     const authorBadge = document.createElement('div');
     authorBadge.className = 'map-author-badge';
-    authorBadge.textContent = '© Viktor Smirnov · Null Fellows';
+    authorBadge.textContent = '© Parallax Intelligence';
     toggles.appendChild(authorBadge);
 
     this.container.appendChild(toggles);

@@ -1829,7 +1829,7 @@ export class GlobeMap {
       </div>`;
     const authorBadge = document.createElement('div');
     authorBadge.className = 'map-author-badge';
-    authorBadge.textContent = '© Viktor Smirnov · Null Fellows';
+    authorBadge.textContent = '© Parallax Intelligence';
     el.appendChild(authorBadge);
     this.container.appendChild(el);
 
