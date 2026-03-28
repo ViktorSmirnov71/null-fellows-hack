@@ -50,12 +50,24 @@ Adapted from <a href="https://github.com/karpathy/autoresearch" target="_blank">
   }
 
   public async fetchData(): Promise<boolean> {
+    // Fetch live risk score to seed the simulation context
+    try {
+      const resp = await fetch('http://localhost:8000/api/risk');
+      if (resp.ok) {
+        const data = await resp.json();
+        this.liveRiskScore = data.total;
+        this.setDataBadge('live');
+      }
+    } catch {
+      this.setDataBadge('cached');
+    }
     this.render();
     this.setCount(this.experiments.length);
-    this.setDataBadge('live');
     this.startSimulation();
     return true;
   }
+
+  private liveRiskScore = 0.42;
 
   private startSimulation(): void {
     if (this.simTimer) return;
@@ -75,6 +87,7 @@ Adapted from <a href="https://github.com/karpathy/autoresearch" target="_blank">
         'Tighten max drawdown limit to -20%',
         'Increase regime shift magnitude 0.03→0.05',
         'Swap RPAR for ALLW (Bridgewater All Weather)',
+        `Adjust for risk score ${(this.liveRiskScore * 100).toFixed(0)}: shift defensive allocation`,
       ];
       this.experiments.push({
         id, status, sharpe,

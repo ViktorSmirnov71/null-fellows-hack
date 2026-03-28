@@ -83,8 +83,28 @@ export class PortfolioPanel extends Panel {
   }
 
   public async fetchData(): Promise<boolean> {
+    try {
+      const resp = await fetch('http://localhost:8000/api/portfolio');
+      if (resp.ok) {
+        const data = await resp.json();
+        this.state.totalValue = data.totalValue;
+        this.state.lastRebalance = data.lastRebalance;
+        this.state.positions = data.positions.map((p: any) => ({
+          ticker: p.ticker,
+          name: p.name,
+          weight: p.weight,
+          value: p.value,
+          assetClass: p.assetClass,
+          color: p.color,
+          dailyChange: p.dailyChange,
+        }));
+        this.setDataBadge('live');
+      }
+    } catch {
+      // API unavailable — use demo data
+      this.setDataBadge('cached');
+    }
     this.render();
-    this.setDataBadge('live');
     return true;
   }
 
