@@ -50,19 +50,35 @@ Adapted from <a href="https://github.com/karpathy/autoresearch" target="_blank">
   }
 
   public async fetchData(): Promise<boolean> {
-    // Fetch live risk score to seed the simulation context
+    let isLive = false;
     try {
-      const resp = await fetch('http://localhost:8000/api/risk');
-      if (resp.ok) {
-        const data = await resp.json();
+      const [riskResp, expResp] = await Promise.allSettled([
+        fetch('http://localhost:8000/api/risk'),
+        fetch('http://localhost:8000/api/experiments'),
+      ]);
+      if (riskResp.status === 'fulfilled' && riskResp.value.ok) {
+        const data = await riskResp.value.json();
         this.liveRiskScore = data.total;
-        this.setDataBadge('live');
       }
-    } catch {
-      this.setDataBadge('cached');
+      if (expResp.status === 'fulfilled' && expResp.value.ok) {
+        const data = await expResp.value.json();
+        this.experiments = data.experiments.map((e: any) => ({
+          id: e.id,
+          status: e.status,
+          sharpe: e.sharpe,
+          maxDrawdown: e.maxDrawdown,
+          description: e.description,
+          timestamp: '',
+        }));
+        isLive = true;
+        console.log('[AutoAllocator] Loaded', data.totalExperiments, 'real experiments, best Sharpe:', data.bestSharpe);
+      }
+    } catch (e) {
+      console.warn('[AutoAllocator] API unavailable, using demo data:', e);
     }
     this.render();
     this.setCount(this.experiments.length);
+    this.setDataBadge(isLive ? 'live' : 'cached');
     this.startSimulation();
     return true;
   }

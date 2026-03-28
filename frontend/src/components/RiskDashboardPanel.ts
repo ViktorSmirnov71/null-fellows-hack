@@ -101,18 +101,29 @@ export class RiskDashboardPanel extends Panel {
     this.showLoading('Computing world risk score...');
     let isLive = false;
     try {
-      const resp = await fetch('http://localhost:8000/api/risk');
-      if (resp.ok) {
-        const data = await resp.json();
+      const [riskResp, btResp] = await Promise.allSettled([
+        fetch('http://localhost:8000/api/risk'),
+        fetch('http://localhost:8000/api/backtest'),
+      ]);
+      if (riskResp.status === 'fulfilled' && riskResp.value.ok) {
+        const data = await riskResp.value.json();
         this.metrics.riskTotal = data.total;
         this.metrics.riskGeo = data.geopolitical;
         this.metrics.riskMacro = data.macro;
         this.metrics.riskVol = data.volatility;
-        if (data.raw?.vix != null) {
-          this.metrics.riskVol = data.components.vix;
-        }
         isLive = true;
-        console.log('[RiskDashboard] Live risk score:', data.total, data.components);
+      }
+      if (btResp.status === 'fulfilled' && btResp.value.ok) {
+        const bt = await btResp.value.json();
+        this.metrics.sharpe = bt.portfolio.sharpe;
+        this.metrics.sortino = bt.portfolio.sortino;
+        this.metrics.maxDrawdown = bt.portfolio.maxDrawdown / 100;
+        this.metrics.calmar = bt.portfolio.calmar;
+        this.metrics.cagr = bt.portfolio.cagr / 100;
+        this.metrics.volatility = bt.portfolio.volatility / 100;
+        this.metrics.winRate = bt.portfolio.winRate / 100;
+        isLive = true;
+        console.log('[RiskDashboard] Backtest loaded:', bt.portfolio);
       }
     } catch (e) {
       console.warn('[RiskDashboard] API unavailable, using demo data:', e);

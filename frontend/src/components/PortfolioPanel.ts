@@ -79,7 +79,7 @@ export class PortfolioPanel extends Panel {
       infoTooltip: 'AI-optimized portfolio with alternative investments. Drag sliders to adjust allocation weights. Totals auto-normalize to 100%.',
     });
     this.state = {
-      totalValue: 10000,
+      totalValue: 700000,
       dataSource: 'demo',
       positions: defaultPositions(),
       riskScore: 0.42,
@@ -190,8 +190,8 @@ export class PortfolioPanel extends Panel {
       <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:10px">
         <div style="flex-shrink:0">${donutSVG(d.positions, 130)}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:26px;font-weight:700;color:var(--text);letter-spacing:-0.5px">$${d.totalValue.toLocaleString()}</div>
-          <div style="font-size:12px;color:${chgColor(dailyTotal)};font-weight:500;margin-bottom:8px">${chgSign(dailyTotal)}$${Math.abs(dailyTotal).toFixed(2)} (${chgSign(dailyPct)}${Math.abs(dailyPct).toFixed(2)}%) today</div>
+          <div style="font-size:26px;font-weight:700;color:var(--text);letter-spacing:-0.5px">&pound;${d.totalValue.toLocaleString()}</div>
+          <div style="font-size:12px;color:${chgColor(dailyTotal)};font-weight:500;margin-bottom:8px">${chgSign(dailyPct)}${Math.abs(dailyPct).toFixed(2)}% today (${chgSign(dailyTotal)}&pound;${Math.abs(dailyTotal).toFixed(0)})</div>
           ${legend}
         </div>
       </div>
@@ -203,7 +203,7 @@ export class PortfolioPanel extends Panel {
       <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Allocations — drag to adjust</div>
       <div style="max-height:300px;overflow-y:auto" id="nf-pos-list">${posRows}</div>
       <div style="margin-top:8px;padding:5px;text-align:center;background:rgba(52,152,219,0.08);border:1px solid rgba(52,152,219,0.15);border-radius:4px">
-        <span style="font-size:10px;color:#3498db;font-weight:500">${d.dataSource === 'demo' ? 'DEMO DATA' : 'LIVE'} &middot; $10K invested &middot; ${d.dataSource !== 'demo' ? 'Yahoo Finance' : 'API offline'}</span>
+        <span style="font-size:10px;color:#3498db;font-weight:500">${d.dataSource === 'demo' ? 'DEMO DATA' : 'LIVE'} &middot; &pound;700K portfolio &middot; ${d.dataSource !== 'demo' ? 'Yahoo Finance' : 'API offline'}</span>
       </div>`;
 
     // Wire up sliders
