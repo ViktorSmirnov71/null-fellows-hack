@@ -43,6 +43,8 @@ class RiskService:
         await self._recompute_risk_score(body.ticker)
 
         return result.data[0]
+    
+    
 
     async def get_risk_score(self, ticker: str) -> RiskScore | None:
         """Single ticker risk score — checks cache first."""
@@ -180,3 +182,79 @@ class RiskService:
         await cache_set(f"risk:{ticker}", risk_score.dict(), ttl_seconds=900)
 
         return risk_score
+    
+
+async def ingest_signals_bulk(
+    self,
+    signals: list,
+    source_run_id: str = None
+) -> dict:
+    """
+    Processes a batch of signals from one AI pipeline run.
+    Inserts all valid signals in one DB call, then recomputes
+    risk scores only for tickers that actually appeared in the batch.
+    Much faster than N individual ingest calls.
+    """
+    db = get_service_supabase()
+
+    # Build insert rows — validate each signal
+    rows = []
+    errors = []
+
+    for signal in signals:
+        try:
+            rows.append({
+                "ticker":      signal.ticker,
+                "source":      signal.source,
+                "signal_type": signal.direction,
+                "score":       signal.conviction,
+                "summary":     signal.claude_analysis or signal.raw_headline or "",
+                "raw_data": {
+                    "groq_filtered":        signal.groq_filtered,
+                    "finbert_scores":       signal.finbert_scores.dict() if signal.finbert_scores else {},
+                    "second_order_effects": signal.second_order_effects,
+                    "sector":               signal.sector,
+                    "raw_headline":         signal.raw_headline,
+                    "source_run_id":        source_run_id
+                },
+                "fetched_at": (signal.timestamp or datetime.utcnow()).isoformat()
+            })
+        except Exception as e:
+            errors.append({
+                "ticker": getattr(signal, "ticker", "unknown"),
+                "error":  str(e)
+            })
+
+    # Single bulk insert — one DB round trip for entire batch
+    inserted_ids = {}
+    if rows:
+        try:
+            result = db.table("research_signals").insert(rows).execute()
+            for row in result.data:
+                inserted_ids[row["ticker"]] = row["id"]
+        except Exception as e:
+            logger.error(f"Bulk insert failed: {e}")
+            # Fall back to individual inserts so partial batch still works
+            for row in rows:
+                try:
+                    r = db.table("research_signals").insert(row).execute()
+                    inserted_ids[row["ticker"]] = r.data[0]["id"]
+                except Exception as ie:
+                    errors.append({"ticker": row["ticker"], "error": str(ie)})
+
+    # Recompute risk scores only for unique tickers in this batch
+    # Don't recompute the same ticker twice if it appeared multiple times
+    unique_tickers = list(set(r["ticker"] for r in rows if r["ticker"] in inserted_ids))
+    for ticker in unique_tickers:
+        try:
+            await self._recompute_risk_score(ticker)
+        except Exception as e:
+            logger.warning(f"Risk recompute failed for {ticker}: {e}")
+
+    return {
+        "rows_attempted":   len(rows),
+        "rows_inserted":    len(inserted_ids),
+        "tickers_updated":  len(unique_tickers),
+        "errors":           errors,
+        "inserted_ids":     inserted_ids
+    }

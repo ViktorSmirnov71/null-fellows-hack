@@ -4,7 +4,7 @@ Uses Groq's LPU for sub-second classification of article financial relevance.
 """
 
 import json
-
+import asyncio
 from groq import AsyncGroq
 from loguru import logger
 

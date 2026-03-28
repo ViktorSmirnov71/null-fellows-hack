@@ -100,17 +100,38 @@ class YFinanceClient:
         return self.get_historical(tickers, period=period)
 
     def get_live_quotes(self, tickers: list[str] | None = None) -> dict[str, float]:
-        """Get current prices for tickers. Defaults to full universe."""
+        """Batch download — one network call instead of N sequential calls."""
         tickers = tickers or list(PORTFOLIO_UNIVERSE.keys())
         quotes = {}
-        for ticker in tickers:
-            try:
-                t = yf.Ticker(ticker)
-                price = t.fast_info.get("lastPrice", 0.0)
-                quotes[ticker] = price
-                time.sleep(self.request_delay)
-            except Exception as e:
-                logger.error(f"Failed to get quote for {ticker}: {e}")
+        try:
+            # yf.download handles all tickers in one HTTP call
+            data = yf.download(
+                tickers,
+                period="2d",
+                auto_adjust=True,
+                progress=False,
+                threads=True    # parallelizes internally
+            )
+            closes = data["Close"]
+
+            if len(tickers) == 1:
+                # Single ticker returns a Series, not a DataFrame
+                price = float(closes.iloc[-1])
+                quotes[tickers[0]] = price
+            else:
+                for ticker in tickers:
+                    try:
+                        quotes[ticker] = float(closes[ticker].iloc[-1])
+                    except Exception:
+                        quotes[ticker] = 0.0
+        except Exception as e:
+            logger.error(f"Bulk quote fetch failed: {e}")
+            # Fall back to individual fetches only on failure
+            for ticker in tickers:
+                try:
+                    quotes[ticker] = float(yf.Ticker(ticker).fast_info.last_price)
+                except Exception:
+                    quotes[ticker] = 0.0
         return quotes
 
     def _classify_type(self, info: dict) -> str:

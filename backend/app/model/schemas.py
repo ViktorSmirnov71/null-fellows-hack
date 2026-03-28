@@ -209,3 +209,24 @@ class MacroIndicator(BaseModel):
     change_pct: Optional[float] = None
     source: str = "fred"
     recorded_at: datetime
+
+
+# ─── Bulk signal ingest ───────────────────────────────────────────────────────
+
+class BulkSignalIngest(BaseModel):
+    signals: list[SignalIngest]
+    source_run_id: Optional[str] = None    # AI engine can tag a pipeline run
+    pipeline_version: Optional[str] = None # track which model version ran
+
+class BulkSignalResult(BaseModel):
+    ticker: str
+    status: str                            # ok | error
+    id: Optional[str] = None
+    detail: Optional[str] = None
+
+class BulkSignalResponse(BaseModel):
+    processed: int
+    success: int
+    failed: int
+    source_run_id: Optional[str] = None
+    results: list[BulkSignalResult]
