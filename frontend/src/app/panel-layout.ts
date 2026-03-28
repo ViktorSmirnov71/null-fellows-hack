@@ -335,8 +335,15 @@ export class PanelLayoutManager implements AppModule {
         </button>`
       ).join('')}
       </div>
+      <div class="nf-tab-bar" id="nfTabBar">
+        <button class="nf-tab active" data-tab="portfolio">Portfolio</button>
+        <button class="nf-tab" data-tab="world">World Events</button>
+      </div>
       <div class="main-content">
-        <div class="panels-grid top-panels-grid" id="topPanelsGrid"></div>
+        <div class="nf-page nf-page-active" id="nfPagePortfolio">
+          <div class="panels-grid top-panels-grid" id="topPanelsGrid"></div>
+        </div>
+        <div class="nf-page" id="nfPageWorld" style="display:none">
         <div class="map-section" id="mapSection">
           <div class="panel-header">
             <div class="panel-header-left">
@@ -365,6 +372,7 @@ export class PanelLayoutManager implements AppModule {
         </div>
         <div class="panels-grid" id="panelsGrid"></div>
         <button class="search-mobile-fab" id="searchMobileFab" aria-label="Search">\u{1F50D}</button>
+        </div><!-- /nfPageWorld -->
       </div>
       <footer class="site-footer">
         <div class="site-footer-brand">
@@ -385,6 +393,40 @@ export class PanelLayoutManager implements AppModule {
     if (this.ctx.isMobile) {
       this.setupMobileMapToggle();
     }
+
+    // Tab navigation between Portfolio and World Events pages
+    this.setupTabNavigation();
+  }
+
+  private setupTabNavigation(): void {
+    const tabBar = document.getElementById('nfTabBar');
+    if (!tabBar) return;
+    const portfolioPage = document.getElementById('nfPagePortfolio');
+    const worldPage = document.getElementById('nfPageWorld');
+    if (!portfolioPage || !worldPage) return;
+
+    tabBar.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('.nf-tab') as HTMLElement | null;
+      if (!btn) return;
+      const tab = btn.dataset.tab;
+
+      tabBar.querySelectorAll('.nf-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+
+      if (tab === 'portfolio') {
+        portfolioPage.style.display = '';
+        portfolioPage.classList.add('nf-page-active');
+        worldPage.style.display = 'none';
+        worldPage.classList.remove('nf-page-active');
+      } else {
+        portfolioPage.style.display = 'none';
+        portfolioPage.classList.remove('nf-page-active');
+        worldPage.style.display = '';
+        worldPage.classList.add('nf-page-active');
+        // Trigger map resize when switching to world tab
+        window.dispatchEvent(new Event('resize'));
+      }
+    });
   }
 
   private setupMobileMapToggle(): void {

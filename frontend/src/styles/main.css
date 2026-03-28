@@ -1131,11 +1131,54 @@ canvas,
   /* This ensures panels scroll UNDER the pinned map (z-index: 100) */
 }
 
-/* Top panels grid — financial allocation panels above the map */
+/* Null Fellows tab navigation */
+.nf-tab-bar {
+  display: flex;
+  gap: 0;
+  padding: 0 8px;
+  background: rgba(10, 15, 10, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+  z-index: 50;
+}
+
+.nf-tab {
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim, #888);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  letter-spacing: 0.02em;
+}
+
+.nf-tab:hover {
+  color: var(--text, #eee);
+}
+
+.nf-tab.active {
+  color: #3498db;
+  border-bottom-color: #3498db;
+}
+
+.nf-page {
+  flex: 1;
+  min-height: 0;
+}
+
+.nf-page-active {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top panels grid — financial allocation panels */
 .top-panels-grid {
   grid-auto-rows: minmax(250px, 500px);
-  padding: 4px 4px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 4px;
+  flex: 1;
 }
 
 .site-footer {
