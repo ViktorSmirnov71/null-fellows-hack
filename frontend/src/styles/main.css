@@ -1131,6 +1131,13 @@ canvas,
   /* This ensures panels scroll UNDER the pinned map (z-index: 100) */
 }
 
+/* Top panels grid — financial allocation panels above the map */
+.top-panels-grid {
+  grid-auto-rows: minmax(250px, 500px);
+  padding: 4px 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .site-footer {
   display: flex;
   align-items: center;
