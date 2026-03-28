@@ -5,6 +5,7 @@ Time-weighted aggregation of sentiment signals per ticker/sector.
 
 import math
 from collections import defaultdict
+from dataclasses import replace
 from datetime import datetime, timezone
 
 
@@ -30,17 +31,51 @@ class SignalAggregator:
             weight_total = 0.0
 
             for signal in group:
-                age_hours = max((now - signal.timestamp.replace(tzinfo=timezone.utc)).total_seconds() / 3600, 0.01)
-                weight = math.exp(-math.log(2) * age_hours / self.half_life_hours)
+                # Safe timezone handling — two explicit cases:
+                # 1. No tzinfo at all → assume UTC and attach it
+                # 2. Has tzinfo → convert to UTC properly with astimezone
+                ts = signal.timestamp
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                else:
+                    ts = ts.astimezone(timezone.utc)
+
+                age_hours = max(
+                    (now - ts).total_seconds() / 3600,
+                    0.01
+                )
+                weight = math.exp(
+                    -math.log(2) * age_hours / self.half_life_hours
+                )
                 weighted_sum += signal.direction * weight
                 weight_total += weight
 
             if weight_total > 0:
                 avg_direction = weighted_sum / weight_total
-                # Use the most recent signal as the base, update direction
-                latest = max(group, key=lambda s: s.timestamp)
-                latest.direction = avg_direction
-                latest.conviction = min(abs(avg_direction) * len(group) / 5, 1.0)  # Scale by volume
-                aggregated.append(latest)
 
-        return sorted(aggregated, key=lambda s: abs(s.direction), reverse=True)
+                # Conviction = 70% signal strength + 30% corroborating volume
+                # A single strong signal (0.9) scores 0.66
+                # Five weak signals (0.1) score 0.22
+                # Volume credit maxes out at 10 signals
+                strength_score = abs(avg_direction)
+                volume_score   = min(len(group) / 10, 1.0)
+                conviction     = min(
+                    0.7 * strength_score + 0.3 * volume_score,
+                    1.0
+                )
+
+                # dataclasses.replace() creates a new object with updated fields
+                # The original signal in the pipeline's list stays untouched
+                latest = max(group, key=lambda s: s.timestamp)
+                aggregated_signal = replace(
+                    latest,
+                    direction=avg_direction,
+                    conviction=conviction
+                )
+                aggregated.append(aggregated_signal)
+
+        return sorted(
+            aggregated,
+            key=lambda s: abs(s.direction),
+            reverse=True
+        )
