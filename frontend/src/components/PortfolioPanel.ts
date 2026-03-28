@@ -14,9 +14,15 @@ interface Position {
   changePct: number;
 }
 
+interface DailyValue { date: string; value: number; }
+
 interface PortfolioState {
   totalValue: number;
+  initialInvestment: number;
+  pnl: number;
+  pnlPct: number;
   dataSource: string;
+  dailyValues: DailyValue[];
   positions: Position[];
   riskScore: number;
   lastRebalance: string;
@@ -80,7 +86,11 @@ export class PortfolioPanel extends Panel {
     });
     this.state = {
       totalValue: 700000,
+      initialInvestment: 700000,
+      pnl: 0,
+      pnlPct: 0,
       dataSource: 'demo',
+      dailyValues: [],
       positions: defaultPositions(),
       riskScore: 0.42,
       lastRebalance: '2026-03-25',
@@ -96,6 +106,10 @@ export class PortfolioPanel extends Panel {
         const data = await resp.json();
         if (data.positions?.length > 0) {
           this.state.totalValue = data.totalValue;
+          this.state.initialInvestment = data.initialInvestment || 700000;
+          this.state.pnl = data.pnl || 0;
+          this.state.pnlPct = data.pnlPct || 0;
+          this.state.dailyValues = data.dailyValues || [];
           this.state.lastRebalance = data.lastRebalance;
           this.state.dataSource = data.dataSource || 'demo';
           this.state.positions = data.positions.map((p: any) => ({
@@ -127,6 +141,26 @@ export class PortfolioPanel extends Panel {
   }
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;
+
+  private sparkline(values: DailyValue[]): string {
+    const w = 180, h = 30, pad = 2;
+    const vals = values.map(v => v.value);
+    const mn = Math.min(...vals), mx = Math.max(...vals);
+    const rng = mx - mn || 1;
+    const pts = vals.map((v, i) => {
+      const x = pad + (i / (vals.length - 1)) * (w - 2 * pad);
+      const y = h - pad - ((v - mn) / rng) * (h - 2 * pad);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    const up = vals[vals.length - 1]! >= vals[0]!;
+    const color = up ? '#2ecc71' : '#e74c3c';
+    const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p}`).join(' ');
+    const fill = `${line} L${(w - pad).toFixed(1)},${h} L${pad},${h} Z`;
+    return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="display:block;margin-bottom:4px">
+      <path d="${fill}" fill="${color}" opacity="0.1"/>
+      <path d="${line}" fill="none" stroke="${color}" stroke-width="1.5"/>
+    </svg>`;
+  }
 
   private recalcValues(): void {
     const total = this.state.positions.reduce((s, p) => s + p.weight, 0);
@@ -197,7 +231,13 @@ export class PortfolioPanel extends Panel {
         <div style="flex-shrink:0">${donutSVG(d.positions, 130)}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:26px;font-weight:700;color:var(--text);letter-spacing:-0.5px">&pound;${d.totalValue.toLocaleString()}</div>
-          <div style="font-size:12px;color:${chgColor(dailyTotal)};font-weight:500;margin-bottom:8px">${chgSign(dailyPct)}${Math.abs(dailyPct).toFixed(2)}% today (${chgSign(dailyTotal)}&pound;${Math.abs(dailyTotal).toFixed(0)})</div>
+          <div style="font-size:11px;color:${chgColor(d.pnl)};font-weight:600;margin-bottom:2px">
+            ${chgSign(d.pnl)}&pound;${Math.abs(d.pnl).toLocaleString()} (${chgSign(d.pnlPct)}${Math.abs(d.pnlPct).toFixed(2)}%) 7-day P&amp;L
+          </div>
+          <div style="font-size:10px;color:${chgColor(dailyTotal)};margin-bottom:6px">
+            ${chgSign(dailyPct)}${Math.abs(dailyPct).toFixed(2)}% today (${chgSign(dailyTotal)}&pound;${Math.abs(dailyTotal).toFixed(0)})
+          </div>
+          ${d.dailyValues.length > 1 ? this.sparkline(d.dailyValues) : ''}
           ${legend}
         </div>
       </div>

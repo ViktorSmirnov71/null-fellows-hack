@@ -69,11 +69,73 @@ price_cache: dict = {}
 price_cache_time: float = 0
 PRICE_TTL = 120
 
+# 7-day price history for portfolio valuation
+seven_day_prices: pd.DataFrame | None = None
+seven_day_cache_time: float = 0
+
 # Historical data cache (loaded once)
 hist_data: pd.DataFrame | None = None
 
 
 # ── Data Fetching ────────────────────────────────────────────────────────────
+
+def get_seven_day_data() -> pd.DataFrame | None:
+    """Get last 10 trading days of data for portfolio valuation."""
+    global seven_day_prices, seven_day_cache_time
+    if time.time() - seven_day_cache_time < 300 and seven_day_prices is not None:
+        return seven_day_prices
+    tickers = list(TICKER_INFO.keys())
+    try:
+        raw = yf.download(tickers, period="10d", auto_adjust=True, progress=False)["Close"].ffill().dropna()
+        seven_day_prices = raw
+        seven_day_cache_time = time.time()
+        return raw
+    except Exception:
+        return seven_day_prices
+
+
+def compute_portfolio_value(weights: dict) -> dict:
+    """
+    Compute the dynamic portfolio value as if £700K was invested 7 days ago
+    with the given weights, based on real market returns.
+    Returns: {current_value, pnl, pnl_pct, daily_values: [{date, value}]}
+    """
+    data = get_seven_day_data()
+    if data is None or len(data) < 2:
+        return {"current_value": INITIAL_INVESTMENT, "pnl": 0, "pnl_pct": 0, "daily_values": []}
+
+    avail = [t for t in weights if t in data.columns and weights[t] > 0.005]
+    if not avail:
+        return {"current_value": INITIAL_INVESTMENT, "pnl": 0, "pnl_pct": 0, "daily_values": []}
+
+    w = {t: weights[t] for t in avail}
+    tot = sum(w.values())
+    w = {k: v / tot for k, v in w.items()}
+
+    # Compute daily weighted portfolio returns
+    returns = data[avail].pct_change().dropna()
+    portfolio_returns = sum(returns[t] * w[t] for t in avail)
+
+    # Build cumulative value series
+    cumulative = (1 + portfolio_returns).cumprod()
+    daily_values = []
+    for date, cum_ret in cumulative.items():
+        daily_values.append({
+            "date": date.strftime("%Y-%m-%d"),
+            "value": round(INITIAL_INVESTMENT * float(cum_ret)),
+        })
+
+    current_value = round(INITIAL_INVESTMENT * float(cumulative.iloc[-1]))
+    pnl = current_value - INITIAL_INVESTMENT
+    pnl_pct = round((pnl / INITIAL_INVESTMENT) * 100, 2)
+
+    return {
+        "current_value": current_value,
+        "pnl": pnl,
+        "pnl_pct": pnl_pct,
+        "daily_values": daily_values,
+    }
+
 
 def load_historical():
     """Load 3 years of daily closes for all tickers."""
@@ -302,30 +364,39 @@ optimizer_thread.start()
 
 @app.get("/api/portfolio")
 def get_portfolio():
-    """Live portfolio with current optimized weights and real prices."""
+    """Live portfolio with dynamic value based on real 7-day market returns."""
     prices = get_live_prices()
-    positions = []
-    total_daily = 0
     with state_lock:
         weights = copy.deepcopy(live_weights)
+
+    # Compute dynamic portfolio value from real market data
+    valuation = compute_portfolio_value(weights)
+    current_value = valuation["current_value"]
+
+    positions = []
+    total_daily = 0
     for ticker, weight in weights.items():
         info = TICKER_INFO.get(ticker, {})
-        pd = prices.get(ticker, {"price": 0, "prev": 0, "pct": 0})
-        value = round(INITIAL_INVESTMENT * weight)
-        shares = round(value / pd["price"], 2) if pd["price"] > 0 else 0
-        daily_change = round(value * pd["pct"] / 100, 2)
+        pd_data = prices.get(ticker, {"price": 0, "prev": 0, "pct": 0})
+        value = round(current_value * weight)
+        shares = round(value / pd_data["price"], 2) if pd_data["price"] > 0 else 0
+        daily_change = round(value * pd_data["pct"] / 100, 2)
         total_daily += daily_change
         positions.append({
             "ticker": ticker, "name": info.get("name", ticker),
             "weight": round(weight, 4), "value": value,
-            "price": pd["price"], "shares": shares,
+            "price": pd_data["price"], "shares": shares,
             "assetClass": info.get("class", ""), "color": info.get("color", "#888"),
-            "dailyChange": daily_change, "changePct": pd["pct"],
+            "dailyChange": daily_change, "changePct": pd_data["pct"],
         })
     return {
-        "totalValue": INITIAL_INVESTMENT,
+        "totalValue": current_value,
+        "initialInvestment": INITIAL_INVESTMENT,
+        "pnl": valuation["pnl"],
+        "pnlPct": valuation["pnl_pct"],
         "totalDailyChange": round(total_daily, 2),
-        "totalDailyChangePct": round((total_daily / INITIAL_INVESTMENT) * 100, 2),
+        "totalDailyChangePct": round((total_daily / max(current_value, 1)) * 100, 2),
+        "dailyValues": valuation["daily_values"],
         "positions": sorted(positions, key=lambda p: p["weight"], reverse=True),
         "lastRebalance": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "dataSource": "Yahoo Finance (live)",
