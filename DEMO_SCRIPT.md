@@ -4,9 +4,9 @@
 
 ## INTRO — Non-technical teammate (30 seconds max)
 
-"Every day, retail investors make portfolio decisions competing with institutional players and some filthy rich people with professional wealth managers. They see stock prices, but they're not empowered with the resources to leverage signals that actually move markets — a military escalation in the Strait of Hormuz, a surprise rate decision from the Fed, a regime change in a commodity-producing nation. This information asymmetry makes wealth democratisation impossible, and leaves so much commercial opportunitity on the table for investment managers as well. 
+"Every day, retail investors make portfolio decisions competing with institutional players and some filthy rich people with professional wealth managers. They're not empowered with the resources to leverage signals that actually move markets — a military escalation in the Strait of Hormuz, a surprise rate decision from the Fed, a regime change in a commodity-producing nation. This information asymmetry makes wealth democratisation impossible, and leaves so much commercial opportunitity on the table for investment managers as well. 
 
-We built a system to fix this. It watches the world and autonomously turns risk signals into opportunity for an average retail behaviour, constantly optimising at scale."
+We built a system to fix this. It watches the world and autonomously turns risk signals into opportunity for an average retail behaviour, constantly optimising at scale, creating a world where anyone with disposable income can invest."
 
 ---
 
