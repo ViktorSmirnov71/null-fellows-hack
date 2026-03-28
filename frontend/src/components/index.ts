@@ -84,3 +84,4 @@ export * from './SocialVelocityPanel';
 export * from './PortfolioPanel';
 export * from './AutoAllocatorPanel';
 export * from './RiskDashboardPanel';
+export { LiveResearcherPage } from './LiveResearcherPage';

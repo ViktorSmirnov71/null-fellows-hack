@@ -48,9 +48,9 @@
     "previewComposingCopy": "The preview is rendering with the latest live data and dashboard styling.",
     "previewErrorCopy": "Fix the issue, then retry. Your existing widgets are unaffected.",
     "createInteractive": "Create Interactive Widget",
-    "proBadge": "PRO",
-    "preflightProUnavailable": "PRO widget agent unavailable. Check PRO_WIDGET_KEY on the server.",
-    "preflightInvalidProKey": "PRO key rejected. Update wm-pro-key and reload.",
+    "proBadge": "",
+    "preflightProUnavailable": "Widget agent unavailable.",
+    "preflightInvalidProKey": "Key rejected. Update and reload.",
     "examples": {
       "oilGold": "Show me today's crude oil price versus gold",
       "cryptoMovers": "Create a widget for the top crypto movers in the last 24 hours",
@@ -407,7 +407,7 @@
       "layers": "Type \"military\" or \"finance\" for layer presets",
       "time": "Type \"1h\", \"24h\", or \"7d\" to filter by time",
       "settings": "Type \"dark mode\", \"settings\", or \"fullscreen\"",
-      "flight": "Search live flights by callsign (PRO)",
+      "flight": "Search live flights by callsign",
       "mapExample": "iran",
       "panelExample": "news",
       "briefExample": "brief china",
@@ -598,8 +598,8 @@
         "some": "Some features need API keys"
       },
       "openSettings": "Open Settings",
-      "reserveEarlyAccess": "Reserve Your Early Access",
-      "skipSetup": "Skip the setup — a single World Monitor license unlocks everything. Join the waitlist for early access.",
+      "reserveEarlyAccess": "",
+      "skipSetup": "",
       "summary": {
         "desktop": "Desktop mode",
         "web": "Web mode (read-only, server-managed credentials)",
@@ -630,8 +630,8 @@
       }
     },
     "settingsWindow": {
-      "freePanelLimit": "Free plan: max {{max}} panels. Upgrade to PRO for unlimited.",
-      "freeSourceLimit": "Free plan: max {{max}} sources. Upgrade to PRO for unlimited.",
+      "freePanelLimit": "Panel limit: {{max}} panels.",
+      "freeSourceLimit": "Source limit: {{max}} sources.",
       "validating": "Validating API keys...",
       "saved": "Settings saved",
       "failed": "Save failed: {{error}}",
@@ -646,30 +646,30 @@
       "sidecarUnreachable": "Sidecar not reachable.",
       "logCleared": "Log cleared.",
       "worldMonitor": {
-        "tabLabel": "World Monitor",
-        "heroTitle": "One key. Everything included.",
-        "heroDescription": "A single World Monitor license replaces every API key and LLM provider you'd otherwise configure yourself. AI summaries, real-time intelligence, market data, conflict tracking, fire detection, satellite imagery — all powered, all managed, zero setup.",
+        "tabLabel": "Settings",
+        "heroTitle": "",
+        "heroDescription": "",
         "apiKey": {
-          "title": "License Key",
-          "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
-          "description": "Paste your license to unlock every data source and AI feature instantly.",
-          "statusValid": "LICENSED",
-          "statusMissing": "NO LICENSE"
+          "title": "API Key",
+          "placeholder": "",
+          "description": "",
+          "statusValid": "Active",
+          "statusMissing": ""
         },
         "dividerOr": "OR",
         "register": {
-          "title": "Reserve Your Spot",
-          "description": "We're preparing to launch World Monitor licenses. Sign up now and be first in line — early members get priority access and founding-member pricing.",
-          "emailPlaceholder": "your@email.com",
-          "submitBtn": "Join Waitlist",
-          "submitting": "Submitting...",
-          "success": "You're on the list! We'll notify you first.",
-          "alreadyRegistered": "You're already on the waitlist.",
-          "error": "Registration failed. Please try again.",
-          "invalidEmail": "Please enter a valid email address."
+          "title": "",
+          "description": "",
+          "emailPlaceholder": "",
+          "submitBtn": "",
+          "submitting": "",
+          "success": "",
+          "alreadyRegistered": "",
+          "error": "",
+          "invalidEmail": ""
         },
-        "byokTitle": "Or bring your own keys",
-        "byokDescription": "Prefer full control? Head to the API Keys and LLMs tabs to configure each data source and AI provider individually."
+        "byokTitle": "Configure your own keys",
+        "byokDescription": "Head to the API Keys and LLMs tabs to configure each data source and AI provider individually."
       },
       "table": {
         "time": "Time",
@@ -2729,15 +2729,15 @@
     "fontSystem": "System Default"
   },
   "premium": {
-    "pro": "PRO",
-    "lockedDesc": "Requires a World Monitor license key",
-    "joinWaitlist": "Join Waitlist",
-    "signInToUnlock": "Sign in to unlock premium features",
-    "signIn": "Sign In to Unlock",
-    "verifyEmailToUnlock": "Verify your email to access premium features",
-    "resendVerification": "Resend Verification",
-    "upgradeDesc": "Upgrade to Pro for full access to premium analytics",
-    "upgradeToPro": "Upgrade to Pro",
+    "pro": "",
+    "lockedDesc": "",
+    "joinWaitlist": "",
+    "signInToUnlock": "",
+    "signIn": "",
+    "verifyEmailToUnlock": "",
+    "resendVerification": "",
+    "upgradeDesc": "",
+    "upgradeToPro": "",
     "features": {
       "orefSirens1": "Real-time Israel missile & rocket alerts",
       "orefSirens2": "Siren zone mapping with threat classification",

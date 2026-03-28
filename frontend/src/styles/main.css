@@ -1,5 +1,6 @@
 @import './rtl-overrides.css';
 @import './panels.css';
+@import './live-researcher.css';
 
 /* ============================================================
    Theme Colors — overridden by [data-theme="light"] below
@@ -1162,6 +1163,11 @@ canvas,
 .nf-tab.active {
   color: #3498db;
   border-bottom-color: #3498db;
+}
+
+.nf-tab.active[data-tab="researcher"] {
+  color: #00e676;
+  border-bottom-color: #00e676;
 }
 
 .nf-page {

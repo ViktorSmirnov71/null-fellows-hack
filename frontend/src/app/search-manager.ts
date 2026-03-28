@@ -28,8 +28,6 @@ import { CountryIntelManager } from '@/app/country-intel';
 import type { PositionSample } from '@/services/aviation';
 import { fetchAircraftPositions } from '@/services/aviation';
 import type { MilitaryFlight } from '@/types';
-import { isProUser } from '@/services/widget-store';
-import { getAuthState } from '@/services/auth-state';
 
 export interface SearchManagerCallbacks {
   openCountryBriefByCode: (code: string, country: string) => void;
@@ -218,7 +216,7 @@ export class SearchManager implements AppModule {
     // so mid-session sign-ins get the feature without a page reload.
     {
       this.ctx.searchModal.setOnFlightSearch((callsign) => {
-        if (!isProUser() && getAuthState().user?.role !== 'pro') return;
+        // All features unlocked
         fetchAircraftPositions({ callsign }).then((positions) => {
           if (!this.ctx.searchModal) return;
           // Deduplicate by callsign: keep the most recently observed entry per callsign.
@@ -576,7 +574,7 @@ export class SearchManager implements AppModule {
   }
 
   updateFlightSource(adsb: PositionSample[], military: MilitaryFlight[]): void {
-    if (!this.ctx.searchModal || !isProUser()) return;
+    if (!this.ctx.searchModal) return;
     const items = [
       ...adsb.map(p => {
         const fl = Number.isFinite(p.altitudeFt) ? Math.round(p.altitudeFt / 100) : null;

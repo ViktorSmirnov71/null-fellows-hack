@@ -1,6 +1,5 @@
 import { Panel } from './Panel';
 import { t } from '@/services/i18n';
-import { hasPremiumAccess } from '@/services/panel-gating';
 import { FrameworkSelector } from './FrameworkSelector';
 import type { DailyMarketBrief } from '@/services/daily-market-brief';
 import { describeFreshness } from '@/services/persistent-cache';
@@ -44,8 +43,8 @@ export class DailyMarketBriefPanel extends Panel {
   private fwSelector: FrameworkSelector;
 
   constructor() {
-    super({ id: 'daily-market-brief', title: 'Daily Market Brief', infoTooltip: t('components.dailyMarketBrief.infoTooltip'), premium: 'locked' });
-    this.fwSelector = new FrameworkSelector({ panelId: 'daily-market-brief', isPremium: hasPremiumAccess(), panel: this, note: 'Applies to client-generated analysis only' });
+    super({ id: 'daily-market-brief', title: 'Daily Market Brief', infoTooltip: t('components.dailyMarketBrief.infoTooltip') });
+    this.fwSelector = new FrameworkSelector({ panelId: 'daily-market-brief', isPremium: true, panel: this, note: 'Applies to client-generated analysis only' });
     this.header.appendChild(this.fwSelector.el);
   }
 

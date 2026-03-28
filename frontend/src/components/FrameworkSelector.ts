@@ -4,7 +4,6 @@ import {
   getActiveFrameworkForPanel,
   setActiveFrameworkForPanel,
 } from '../services/analysis-framework-store';
-import { PanelGateReason } from '../services/panel-gating';
 import type { Panel } from './Panel';
 
 interface FrameworkSelectorOptions {
@@ -55,18 +54,9 @@ export class FrameworkSelector {
       defaultOpt.textContent = 'Default (Neutral)';
       select.appendChild(defaultOpt);
 
-      const badge = document.createElement('span');
-      badge.className = 'framework-selector-pro-badge';
-      badge.textContent = 'PRO';
-
       const wrap = document.createElement('span');
       wrap.className = 'framework-selector-wrap';
-      wrap.append(select, badge);
-      if (opts.panel) {
-        wrap.addEventListener('click', () => {
-          opts.panel!.showGatedCta(PanelGateReason.FREE_TIER, () => {});
-        });
-      }
+      wrap.append(select);
       this.el = wrap;
     }
   }

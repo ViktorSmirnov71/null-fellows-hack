@@ -70,6 +70,7 @@ import {
   PortfolioPanel,
   AutoAllocatorPanel,
   RiskDashboardPanel,
+  LiveResearcherPage,
 } from '@/components';
 import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
 import { focusInvestmentOnMap } from '@/services/investments-focus';
@@ -97,17 +98,7 @@ import { loadMcpPanels, saveMcpPanel } from '@/services/mcp-store';
 import type { McpPanelSpec } from '@/services/mcp-store';
 import { getAuthState, subscribeAuthState } from '@/services/auth-state';
 import type { AuthSession } from '@/services/auth-state';
-import { PanelGateReason, getPanelGateReason, hasPremiumAccess } from '@/services/panel-gating';
 import type { Panel } from '@/components/Panel';
-
-/** Panels that require premium access on web. Auth-based gating applies to these. */
-const WEB_PREMIUM_PANELS = new Set([
-  'stock-analysis',
-  'stock-backtest',
-  'daily-market-brief',
-  'market-implications',
-  'deduction',
-]);
 
 export interface PanelLayoutManagerCallbacks {
   openCountryStory: (code: string, name: string) => void;
@@ -179,32 +170,10 @@ export class PanelLayoutManager implements AppModule {
     window.removeEventListener('resize', this.ensureCorrectZones);
   }
 
-  /** Reactively update premium panel gating based on auth state. */
-  private updatePanelGating(state: AuthSession): void {
-    for (const [key, panel] of Object.entries(this.ctx.panels)) {
-      const isPremium = WEB_PREMIUM_PANELS.has(key);
-      const reason = getPanelGateReason(state, isPremium);
-
-      if (reason === PanelGateReason.NONE) {
-        // User has access -- unlock if previously locked
-        (panel as Panel).unlockPanel();
-      } else {
-        // User does NOT have access -- show appropriate CTA
-        const onAction = this.getGateAction(reason);
-        (panel as Panel).showGatedCta(reason, onAction);
-      }
-    }
-  }
-
-  /** Return the action callback for a given gate reason. */
-  private getGateAction(reason: PanelGateReason): () => void {
-    switch (reason) {
-      case PanelGateReason.ANONYMOUS:
-        return () => this.ctx.authModal?.open();
-      case PanelGateReason.FREE_TIER:
-        return () => window.open('https://worldmonitor.app/pro', '_blank');
-      default:
-        return () => {};
+  /** No-op — all panels are unlocked. */
+  private updatePanelGating(_state: AuthSession): void {
+    for (const [, panel] of Object.entries(this.ctx.panels)) {
+      (panel as Panel).unlockPanel();
     }
   }
 
@@ -337,10 +306,14 @@ export class PanelLayoutManager implements AppModule {
       <div class="nf-tab-bar" id="nfTabBar">
         <button class="nf-tab active" data-tab="portfolio">Portfolio</button>
         <button class="nf-tab" data-tab="world">World Events</button>
+        <button class="nf-tab" data-tab="researcher">Auto Researcher</button>
       </div>
       <div class="main-content">
         <div class="nf-page nf-page-active" id="nfPagePortfolio">
           <div class="panels-grid top-panels-grid" id="topPanelsGrid"></div>
+        </div>
+        <div class="nf-page" id="nfPageResearcher" style="display:none">
+          <div id="liveResearcherRoot" style="height:100%"></div>
         </div>
         <div class="nf-page" id="nfPageWorld" style="display:none">
         <div class="map-section" id="mapSection">
@@ -394,33 +367,54 @@ export class PanelLayoutManager implements AppModule {
     this.setupTabNavigation();
   }
 
+  private liveResearcher: LiveResearcherPage | null = null;
+
   private setupTabNavigation(): void {
     const tabBar = document.getElementById('nfTabBar');
     if (!tabBar) return;
-    const portfolioPage = document.getElementById('nfPagePortfolio');
-    const worldPage = document.getElementById('nfPageWorld');
-    if (!portfolioPage || !worldPage) return;
+
+    const pages: Record<string, HTMLElement | null> = {
+      portfolio: document.getElementById('nfPagePortfolio'),
+      world: document.getElementById('nfPageWorld'),
+      researcher: document.getElementById('nfPageResearcher'),
+    };
+
+    // Mount live researcher page
+    const researcherRoot = document.getElementById('liveResearcherRoot');
+    if (researcherRoot) {
+      this.liveResearcher = new LiveResearcherPage();
+      researcherRoot.appendChild(this.liveResearcher.element);
+    }
 
     tabBar.addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest('.nf-tab') as HTMLElement | null;
       if (!btn) return;
       const tab = btn.dataset.tab;
+      if (!tab) return;
 
       tabBar.querySelectorAll('.nf-tab').forEach(t => t.classList.remove('active'));
       btn.classList.add('active');
 
-      if (tab === 'portfolio') {
-        portfolioPage.style.display = '';
-        portfolioPage.classList.add('nf-page-active');
-        worldPage.style.display = 'none';
-        worldPage.classList.remove('nf-page-active');
-      } else {
-        portfolioPage.style.display = 'none';
-        portfolioPage.classList.remove('nf-page-active');
-        worldPage.style.display = '';
-        worldPage.classList.add('nf-page-active');
-        // Trigger map resize when switching to world tab
+      // Hide all pages, show selected
+      for (const [key, page] of Object.entries(pages)) {
+        if (!page) continue;
+        if (key === tab) {
+          page.style.display = '';
+          page.classList.add('nf-page-active');
+        } else {
+          page.style.display = 'none';
+          page.classList.remove('nf-page-active');
+        }
+      }
+
+      // Lifecycle hooks
+      if (tab === 'world') {
         window.dispatchEvent(new Event('resize'));
+      }
+      if (tab === 'researcher') {
+        this.liveResearcher?.activate();
+      } else {
+        this.liveResearcher?.deactivate();
       }
     });
   }
@@ -826,7 +820,7 @@ export class PanelLayoutManager implements AppModule {
       }),
     );
 
-    const _lockPanels = this.ctx.isDesktopApp && !hasPremiumAccess();
+    const _lockPanels = false;
 
     this.lazyPanel('daily-market-brief', () =>
       import('@/components/DailyMarketBriefPanel').then(m => new m.DailyMarketBriefPanel()),

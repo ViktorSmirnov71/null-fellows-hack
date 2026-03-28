@@ -1,5 +1,4 @@
 import { loadFromStorage, saveToStorage } from '@/utils';
-import { hasPremiumAccess } from './panel-gating';
 
 const LIBRARY_KEY = 'wm-analysis-frameworks';
 const PANEL_KEY = 'wm-panel-frameworks';
@@ -145,7 +144,6 @@ export function renameImportedFramework(id: string, name: string): void {
 }
 
 export function getActiveFrameworkForPanel(panelId: AnalysisPanelId): AnalysisFramework | null {
-  if (!hasPremiumAccess()) return null;
   if (_activeCache.has(panelId)) return _activeCache.get(panelId)!;
   const selections = loadFromStorage<Record<string, string | null>>(PANEL_KEY, {});
   const frameworkId = selections[panelId] ?? null;
