@@ -1,8 +1,8 @@
 /**
  * GlobeMap - 3D interactive globe using globe.gl
  *
- * Matches World Monitor's MapContainer API so it can be used as a drop-in
- * replacement within MapContainer when the user enables globe mode.
+ * 3D globe that matches MapContainer API so it can be used as a drop-in
+ * replacement when the user enables globe mode.
  *
  * Architecture mirrors Sentinel (sentinel.axonia.us):
  *  - globe.gl v2 (new Globe(element, config))

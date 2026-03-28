@@ -14,7 +14,7 @@
  *   3. If neither is set → return null (graceful degradation).
  *
  * See: https://acleddata.com/api-documentation/getting-started
- * Fixes: https://github.com/koala73/worldmonitor/issues/1283
+ * Fixes: ACLED token rotation issue
  */
 
 import { CHROME_UA } from './constants';
