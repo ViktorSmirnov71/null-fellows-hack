@@ -5,206 +5,179 @@ interface Experiment {
   id: number;
   status: 'KEPT' | 'DISCARDED' | 'CRASH';
   sharpe: number;
-  sortino: number;
   maxDrawdown: number;
-  calmar: number;
-  tailRatio: number;
   description: string;
   timestamp: string;
-  benchmarkSharpe: number;
 }
 
-interface AllocatorState {
-  isRunning: boolean;
-  totalExperiments: number;
-  keptCount: number;
-  discardedCount: number;
-  crashCount: number;
-  bestSharpe: number;
-  benchmarkSharpe: number;
-  currentIteration: number;
-  experiments: Experiment[];
-}
+const DEMO_EXPERIMENTS: Experiment[] = [
+  { id: 1, status: 'KEPT',      sharpe: 1.21, maxDrawdown: -0.142, description: 'Increase DBMF 10%→15%, reduce SPY 20%→15%', timestamp: '06:12' },
+  { id: 2, status: 'DISCARDED', sharpe: 1.15, maxDrawdown: -0.168, description: 'Switch rebalance to weekly', timestamp: '06:18' },
+  { id: 3, status: 'KEPT',      sharpe: 1.34, maxDrawdown: -0.131, description: 'Add RPAR 5%, reduce AGG 10%→5%', timestamp: '06:24' },
+  { id: 4, status: 'DISCARDED', sharpe: 1.28, maxDrawdown: -0.189, description: 'Increase sentiment weight 0.15→0.30', timestamp: '06:30' },
+  { id: 5, status: 'CRASH',     sharpe: 0,    maxDrawdown: 0,      description: 'Remove all bond allocation', timestamp: '06:36' },
+  { id: 6, status: 'KEPT',      sharpe: 1.42, maxDrawdown: -0.118, description: 'Raise risk threshold 0.7→0.65, shift 3% to GLDM', timestamp: '06:42' },
+  { id: 7, status: 'DISCARDED', sharpe: 1.38, maxDrawdown: -0.145, description: 'Increase ARCC weight to 12%', timestamp: '06:48' },
+  { id: 8, status: 'KEPT',      sharpe: 1.51, maxDrawdown: -0.113, description: 'Consolidate JAAA+CLOA, lower min conviction', timestamp: '06:54' },
+];
 
-function getDemoState(): AllocatorState {
-  const experiments: Experiment[] = [
-    { id: 1,  status: 'KEPT',      sharpe: 1.21, sortino: 1.65, maxDrawdown: -0.142, calmar: 0.85, tailRatio: 1.08, description: 'Increase DBMF weight 10%→15%, reduce SPY 20%→15%', timestamp: '2026-03-28T06:12:00Z', benchmarkSharpe: 0.54 },
-    { id: 2,  status: 'DISCARDED', sharpe: 1.15, sortino: 1.52, maxDrawdown: -0.168, calmar: 0.72, tailRatio: 0.98, description: 'Switch rebalance to weekly', timestamp: '2026-03-28T06:18:00Z', benchmarkSharpe: 0.54 },
-    { id: 3,  status: 'KEPT',      sharpe: 1.34, sortino: 1.82, maxDrawdown: -0.131, calmar: 1.02, tailRatio: 1.15, description: 'Add RPAR 5%, reduce AGG 10%→5%', timestamp: '2026-03-28T06:24:00Z', benchmarkSharpe: 0.54 },
-    { id: 4,  status: 'DISCARDED', sharpe: 1.28, sortino: 1.71, maxDrawdown: -0.189, calmar: 0.73, tailRatio: 1.10, description: 'Increase sentiment weight 0.15→0.30', timestamp: '2026-03-28T06:30:00Z', benchmarkSharpe: 0.54 },
-    { id: 5,  status: 'CRASH',     sharpe: 0,    sortino: 0,    maxDrawdown: 0,      calmar: 0,    tailRatio: 0,    description: 'Remove all bond allocation', timestamp: '2026-03-28T06:36:00Z', benchmarkSharpe: 0.54 },
-    { id: 6,  status: 'KEPT',      sharpe: 1.42, sortino: 1.95, maxDrawdown: -0.118, calmar: 1.20, tailRatio: 1.21, description: 'Raise risk threshold 0.7→0.65, shift 3% more to GLDM in high-risk regime', timestamp: '2026-03-28T06:42:00Z', benchmarkSharpe: 0.54 },
-    { id: 7,  status: 'DISCARDED', sharpe: 1.38, sortino: 1.88, maxDrawdown: -0.145, calmar: 0.98, tailRatio: 1.18, description: 'Increase ARCC weight to 12%', timestamp: '2026-03-28T06:48:00Z', benchmarkSharpe: 0.54 },
-    { id: 8,  status: 'KEPT',      sharpe: 1.51, sortino: 2.10, maxDrawdown: -0.113, calmar: 1.34, tailRatio: 1.24, description: 'Add JAAA 5% from CLOA, lower min conviction 0.3→0.2', timestamp: '2026-03-28T06:54:00Z', benchmarkSharpe: 0.54 },
-  ];
-
-  return {
-    isRunning: true,
-    totalExperiments: experiments.length,
-    keptCount: experiments.filter(e => e.status === 'KEPT').length,
-    discardedCount: experiments.filter(e => e.status === 'DISCARDED').length,
-    crashCount: experiments.filter(e => e.status === 'CRASH').length,
-    bestSharpe: 1.51,
-    benchmarkSharpe: 0.54,
-    currentIteration: 9,
-    experiments: experiments.reverse(),
-  };
-}
-
-function statusBadge(status: string): string {
-  const colors: Record<string, { bg: string; fg: string }> = {
-    KEPT:      { bg: 'rgba(46,204,113,0.15)', fg: '#2ecc71' },
-    DISCARDED: { bg: 'rgba(231,76,60,0.15)',  fg: '#e74c3c' },
-    CRASH:     { bg: 'rgba(241,196,15,0.15)', fg: '#f1c40f' },
-  };
-  const c = colors[status] ?? colors.DISCARDED!;
-  return `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:0.5px;background:${c!.bg};color:${c!.fg}">${status}</span>`;
-}
-
-function renderProgressBar(kept: number, discarded: number, crashed: number, total: number): string {
-  const kPct = (kept / total * 100).toFixed(1);
-  const dPct = (discarded / total * 100).toFixed(1);
-  const cPct = (crashed / total * 100).toFixed(1);
-  return `
-    <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.05)">
-      <div style="width:${kPct}%;background:#2ecc71" title="${kept} kept"></div>
-      <div style="width:${dPct}%;background:#e74c3c" title="${discarded} discarded"></div>
-      <div style="width:${cPct}%;background:#f1c40f" title="${crashed} crashed"></div>
-    </div>`;
-}
-
-function renderSharpeFrontier(experiments: Experiment[]): string {
-  // Mini SVG chart showing Sharpe progression
-  const w = 280, h = 60, pad = 4;
-  const valid = experiments.filter(e => e.status !== 'CRASH').reverse();
-  if (valid.length < 2) return '';
-
-  const maxS = Math.max(...valid.map(e => e.sharpe)) * 1.1;
-  const minS = Math.min(...valid.map(e => e.sharpe)) * 0.9;
-  const range = maxS - minS || 1;
-
-  const points = valid.map((e, i) => {
-    const x = pad + (i / (valid.length - 1)) * (w - 2 * pad);
-    const y = h - pad - ((e.sharpe - minS) / range) * (h - 2 * pad);
-    return { x, y, status: e.status, sharpe: e.sharpe };
-  });
-
-  // Running maximum (frontier)
-  let best = -Infinity;
-  const frontier: { x: number; y: number }[] = [];
-  for (const p of points) {
-    if (p.sharpe > best) best = p.sharpe;
-    const y = h - pad - ((best - minS) / range) * (h - 2 * pad);
-    frontier.push({ x: p.x, y });
-  }
-
-  const frontierLine = frontier.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-
-  const dots = points.map(p => {
-    const fill = p.status === 'KEPT' ? '#2ecc71' : '#e74c3c';
-    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${fill}" opacity="0.8"/>`;
-  }).join('');
-
-  return `
-    <div style="margin:8px 0">
-      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">SHARPE FRONTIER</div>
-      <svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" style="display:block">
-        <path d="${frontierLine}" fill="none" stroke="#3498db" stroke-width="1.5" opacity="0.6"/>
-        ${dots}
-      </svg>
-    </div>`;
+function badge(status: string): string {
+  const m: Record<string, string> = { KEPT: '#2ecc71', DISCARDED: '#e74c3c', CRASH: '#f1c40f' };
+  const c = m[status] || '#95a5a6';
+  return `<span style="display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:0.4px;background:${c}22;color:${c}">${status}</span>`;
 }
 
 export class AutoAllocatorPanel extends Panel {
-  private state: AllocatorState | null = null;
+  private experiments: Experiment[];
+  private running = true;
+  private simTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     super({
       id: 'auto-allocator',
       title: 'AutoAllocator',
       showCount: true,
-      infoTooltip: 'Autonomous portfolio optimization loop inspired by karpathy/autoresearch. The AI proposes allocation changes, backtests them, and keeps improvements.',
+      infoTooltip: 'Autonomous portfolio optimization loop (autoresearch pattern). AI proposes allocation changes, backtests them, keeps improvements, discards regressions.',
     });
+    this.experiments = [...DEMO_EXPERIMENTS];
   }
 
   public async fetchData(): Promise<boolean> {
-    this.showLoading();
-    try {
-      this.state = getDemoState();
-      this.setCount(this.state.totalExperiments);
+    this.render();
+    this.setCount(this.experiments.length);
+    this.setDataBadge('live');
+    this.startSimulation();
+    return true;
+  }
+
+  private startSimulation(): void {
+    if (this.simTimer) return;
+    this.simTimer = setInterval(() => {
+      if (!this.running) return;
+      const id = this.experiments.length + 1;
+      const roll = Math.random();
+      const status: Experiment['status'] = roll < 0.35 ? 'KEPT' : roll < 0.9 ? 'DISCARDED' : 'CRASH';
+      const bestSharpe = Math.max(...this.experiments.filter(e => e.status === 'KEPT').map(e => e.sharpe));
+      const sharpe = status === 'CRASH' ? 0 : +(bestSharpe + (Math.random() - 0.45) * 0.3).toFixed(2);
+      const descs = [
+        'Shift 2% from equity to managed futures',
+        'Increase GLDM weight for tail hedge',
+        'Lower rebalance frequency to quarterly',
+        'Raise sentiment conviction threshold 0.2→0.35',
+        'Add 3% BXSL, reduce CLOA by 3%',
+        'Tighten max drawdown limit to -20%',
+        'Increase regime shift magnitude 0.03→0.05',
+        'Swap RPAR for ALLW (Bridgewater All Weather)',
+      ];
+      this.experiments.push({
+        id, status, sharpe,
+        maxDrawdown: status === 'CRASH' ? 0 : +(Math.random() * -0.25).toFixed(3),
+        description: descs[Math.floor(Math.random() * descs.length)]!,
+        timestamp: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+      });
+      this.setCount(this.experiments.length);
       this.render();
-      this.setDataBadge('live');
-      return true;
-    } catch (e) {
-      this.showError('Failed to load allocator state', () => void this.fetchData());
-      return false;
-    }
+    }, 12000);
+  }
+
+  destroy(): void {
+    if (this.simTimer) clearInterval(this.simTimer);
+    super.destroy();
   }
 
   private render(): void {
-    if (!this.state) return;
-    const s = this.state;
-    const keepRate = s.totalExperiments > 0 ? ((s.keptCount / s.totalExperiments) * 100).toFixed(0) : '0';
-    const improvement = s.benchmarkSharpe > 0 ? (((s.bestSharpe - s.benchmarkSharpe) / s.benchmarkSharpe) * 100).toFixed(0) : 'N/A';
+    const exps = this.experiments;
+    const kept = exps.filter(e => e.status === 'KEPT');
+    const discarded = exps.filter(e => e.status === 'DISCARDED');
+    const crashed = exps.filter(e => e.status === 'CRASH');
+    const bestSharpe = kept.length ? Math.max(...kept.map(e => e.sharpe)) : 0;
+    const benchmarkSharpe = 0.54;
+    const improvement = benchmarkSharpe > 0 ? (((bestSharpe - benchmarkSharpe) / benchmarkSharpe) * 100).toFixed(0) : '0';
+    const keepRate = exps.length > 0 ? ((kept.length / exps.length) * 100).toFixed(0) : '0';
 
-    const experimentRows = s.experiments.slice(0, 8).map(e => `
-      <div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:10px;color:var(--text-muted)">#${e.id}</span>
-            ${statusBadge(e.status)}
+    // Progress bar
+    const kPct = (kept.length / exps.length * 100) || 0;
+    const dPct = (discarded.length / exps.length * 100) || 0;
+    const cPct = (crashed.length / exps.length * 100) || 0;
+
+    // Sharpe frontier mini chart
+    const valid = exps.filter(e => e.status !== 'CRASH');
+    let frontierSVG = '';
+    if (valid.length >= 2) {
+      const w = 260, h = 50, pad = 4;
+      const maxS = Math.max(...valid.map(e => e.sharpe)) * 1.05;
+      const minS = Math.min(...valid.map(e => e.sharpe)) * 0.95;
+      const rng = maxS - minS || 1;
+      const pts = valid.map((e, i) => ({
+        x: pad + (i / (valid.length - 1)) * (w - 2 * pad),
+        y: h - pad - ((e.sharpe - minS) / rng) * (h - 2 * pad),
+        kept: e.status === 'KEPT',
+      }));
+      let best = -Infinity;
+      const fLine = pts.map(p => {
+        if (valid[pts.indexOf(p)]!.sharpe > best) best = valid[pts.indexOf(p)]!.sharpe;
+        const fy = h - pad - ((best - minS) / rng) * (h - 2 * pad);
+        return `${pts.indexOf(p) === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${fy.toFixed(1)}`;
+      }).join(' ');
+      const dots = pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.5" fill="${p.kept ? '#2ecc71' : '#e74c3c'}" opacity="0.8"/>`).join('');
+      frontierSVG = `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" style="display:block;margin:6px 0"><path d="${fLine}" fill="none" stroke="#3498db" stroke-width="1.5" opacity="0.5"/>${dots}</svg>`;
+    }
+
+    const rows = [...exps].reverse().slice(0, 10).map(e => `
+      <div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="font-size:9px;color:var(--text-muted)">#${e.id}</span>
+            ${badge(e.status)}
+            <span style="font-size:10px;color:var(--text-muted)">${e.timestamp}</span>
           </div>
-          <span style="font-size:11px;font-weight:600;color:var(--text)">${e.status === 'CRASH' ? '—' : e.sharpe.toFixed(2)}</span>
+          <span style="font-size:11px;font-weight:600;color:var(--text)">${e.status === 'CRASH' ? '---' : e.sharpe.toFixed(2)}</span>
         </div>
-        <div style="font-size:10px;color:var(--text-dim);line-height:1.3">${escapeHtml(e.description)}</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:1px">${escapeHtml(e.description)}</div>
+      </div>`).join('');
+
+    const el = document.createElement('div');
+    el.style.cssText = 'padding:12px 14px';
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${this.running ? '#2ecc71' : '#95a5a6'};animation:${this.running ? 'nf-pulse 2s infinite' : 'none'}"></div>
+        <span style="font-size:11px;font-weight:600;color:${this.running ? '#2ecc71' : '#95a5a6'}">${this.running ? 'RUNNING' : 'PAUSED'} &middot; ${exps.length} experiments</span>
       </div>
-    `).join('');
-
-    const html = `
-      <div style="padding:12px 14px">
-        <!-- Status indicator -->
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
-          <div style="width:8px;height:8px;border-radius:50%;background:${s.isRunning ? '#2ecc71' : '#95a5a6'};${s.isRunning ? 'animation:pulse 2s infinite' : ''}"></div>
-          <span style="font-size:11px;font-weight:600;color:${s.isRunning ? '#2ecc71' : '#95a5a6'}">${s.isRunning ? 'RUNNING' : 'STOPPED'} &middot; Iteration #${s.currentIteration}</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+        <div style="padding:6px;background:rgba(255,255,255,0.03);border-radius:5px;text-align:center">
+          <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase">Best Sharpe</div>
+          <div style="font-size:17px;font-weight:700;color:#2ecc71">${bestSharpe.toFixed(2)}</div>
         </div>
-
-        <!-- Key metrics -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
-          <div style="padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center">
-            <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">Best Sharpe</div>
-            <div style="font-size:18px;font-weight:700;color:#2ecc71">${s.bestSharpe.toFixed(2)}</div>
-          </div>
-          <div style="padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center">
-            <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">Benchmark</div>
-            <div style="font-size:18px;font-weight:700;color:var(--text-dim)">${s.benchmarkSharpe.toFixed(2)}</div>
-          </div>
-          <div style="padding:8px;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center">
-            <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">vs 60/40</div>
-            <div style="font-size:18px;font-weight:700;color:#3498db">+${improvement}%</div>
-          </div>
+        <div style="padding:6px;background:rgba(255,255,255,0.03);border-radius:5px;text-align:center">
+          <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase">60/40 Bench</div>
+          <div style="font-size:17px;font-weight:700;color:var(--text-dim)">${benchmarkSharpe.toFixed(2)}</div>
         </div>
-
-        <!-- Progress bar -->
-        ${renderProgressBar(s.keptCount, s.discardedCount, s.crashCount, s.totalExperiments)}
-        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--text-muted)">
-          <span>${s.keptCount} kept (${keepRate}%)</span>
-          <span>${s.discardedCount} discarded</span>
-          <span>${s.crashCount} crashed</span>
-        </div>
-
-        <!-- Sharpe frontier chart -->
-        ${renderSharpeFrontier(s.experiments)}
-
-        <!-- Experiment log -->
-        <div style="font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px">Experiment Log</div>
-        <div style="max-height:240px;overflow-y:auto">
-          ${experimentRows}
+        <div style="padding:6px;background:rgba(255,255,255,0.03);border-radius:5px;text-align:center">
+          <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase">vs 60/40</div>
+          <div style="font-size:17px;font-weight:700;color:#3498db">+${improvement}%</div>
         </div>
       </div>
-      <style>
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-      </style>`;
+      <div style="display:flex;height:5px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.05)">
+        <div style="width:${kPct.toFixed(1)}%;background:#2ecc71"></div>
+        <div style="width:${dPct.toFixed(1)}%;background:#e74c3c"></div>
+        <div style="width:${cPct.toFixed(1)}%;background:#f1c40f"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:9px;color:var(--text-muted)">
+        <span>${kept.length} kept (${keepRate}%)</span><span>${discarded.length} disc</span><span>${crashed.length} crash</span>
+      </div>
+      ${frontierSVG}
+      <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;margin:4px 0 2px">Experiment Log</div>
+      <div style="max-height:220px;overflow-y:auto">${rows}</div>
+    `;
 
-    this.setContent(html);
+    // Add pulse animation if not already present
+    if (!document.getElementById('nf-pulse-style')) {
+      const style = document.createElement('style');
+      style.id = 'nf-pulse-style';
+      style.textContent = '@keyframes nf-pulse{0%,100%{opacity:1}50%{opacity:0.3}}';
+      document.head.appendChild(style);
+    }
+
+    this.element.querySelector('.panel-content')!.replaceChildren(el);
   }
 }
