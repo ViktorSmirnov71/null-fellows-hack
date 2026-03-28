@@ -1809,8 +1809,8 @@ body.panel-resize-active iframe {
   font-size: 11px;
   line-height: 1.5;
   color: var(--text);
-  min-width: 220px;
-  max-width: 300px;
+  min-width: 320px;
+  max-width: 520px;
   z-index: 1000;
   box-shadow: 0 4px 16px var(--shadow-color);
   opacity: 0;
