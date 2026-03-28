@@ -4,9 +4,9 @@
 
 ## INTRO — Non-technical teammate (30 seconds max)
 
-"Every day, fund managers and retail investors make portfolio decisions in a vacuum. They see stock prices, but they're blind to the signals that actually move markets — a military escalation in the Strait of Hormuz, a surprise rate decision from the Fed, a regime change in a commodity-producing nation. By the time that information reaches a Bloomberg terminal, the trade is already over.
+"Every day, fund managers and retail investors make portfolio decisions in a vacuum. They see stock prices, but they're not empowered with the resources to interpret signals that actually move markets — a military escalation in the Strait of Hormuz, a surprise rate decision from the Fed, a regime change in a commodity-producing nation. There's so much opportunitity, for investment managers and investors, left on the table as a direct result of this gap.
 
-We built a system that closes that gap. It watches the world, interprets the signal, and autonomously acts on it."
+We built a system to fix this. It watches the world, interprets the signal, and autonomously acts on it."
 
 ---
 
