@@ -1,7 +1,13 @@
 // Stub - variant removed
+export class ConsumerPricesServiceClient {
+  constructor(..._args: any[]) {
+    return new Proxy(this, {
+      get: (_target, _prop) => (..._a: any[]) => Promise.resolve({})
+    });
+  }
+}
 export type BasketPoint = any;
 export type CategorySnapshot = any;
-export const ConsumerPricesServiceClient: any = null;
 export type GetConsumerPriceBasketSeriesResponse = any;
 export type GetConsumerPriceFreshnessResponse = any;
 export type GetConsumerPriceOverviewResponse = any;

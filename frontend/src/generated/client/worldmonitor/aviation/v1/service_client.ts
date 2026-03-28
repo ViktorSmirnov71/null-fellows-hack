@@ -1,8 +1,14 @@
 // Stub - variant removed
+export class AviationServiceClient {
+  constructor(..._args: any[]) {
+    return new Proxy(this, {
+      get: (_target, _prop) => (..._a: any[]) => Promise.resolve({})
+    });
+  }
+}
 export type AirportDelayAlert = any;
 export type AirportOpsSummary = any;
 export type AviationNewsItem = any;
-export const AviationServiceClient: any = null;
 export type CabinClass = any;
 export type CarrierOpsSummary = any;
 export type FlightInstance = any;
