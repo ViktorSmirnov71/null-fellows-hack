@@ -379,10 +379,13 @@ export class PanelLayoutManager implements AppModule {
       researcher: document.getElementById('nfPageResearcher'),
     };
 
-    // Mount live researcher page
+    // Mount live researcher page (only once — guard against re-entry)
     const researcherRoot = document.getElementById('liveResearcherRoot');
-    if (researcherRoot) {
+    if (researcherRoot && !this.liveResearcher) {
       this.liveResearcher = new LiveResearcherPage();
+      researcherRoot.appendChild(this.liveResearcher.element);
+    } else if (researcherRoot && this.liveResearcher && !researcherRoot.contains(this.liveResearcher.element)) {
+      // DOM was rebuilt but instance survives — re-attach
       researcherRoot.appendChild(this.liveResearcher.element);
     }
 

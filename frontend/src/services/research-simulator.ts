@@ -231,6 +231,8 @@ export class ResearchSimulator {
   private speed = 1;
   private aborted = false;
   private groqApiKey: string | null = null;
+  /** Generation counter — incremented on every start() to kill stale loops */
+  private generation = 0;
 
   constructor(onEvent: (event: ResearchEvent) => void) {
     this.onEvent = onEvent;
@@ -250,6 +252,9 @@ export class ResearchSimulator {
 
   getState(): SimulatorState { return this.state; }
 
+  /** Swap the event callback (used when DOM rebuilds but state persists) */
+  setOnEvent(cb: (event: ResearchEvent) => void): void { this.onEvent = cb; }
+
   setGroqApiKey(key: string | null): void { this.groqApiKey = key; }
 
   setSpeed(x: number): void { this.speed = clamp(x, 1, 10); }
@@ -258,7 +263,8 @@ export class ResearchSimulator {
     if (this.state.running) return;
     this.state.running = true;
     this.aborted = false;
-    void this.runLoop();
+    this.generation++;
+    void this.runLoop(this.generation);
   }
 
   pause(): void {
@@ -269,6 +275,11 @@ export class ResearchSimulator {
   resume(): void {
     if (this.state.running) return;
     this.start();
+  }
+
+  /** Returns true if the current loop generation is still valid */
+  private alive(gen: number): boolean {
+    return !this.aborted && gen === this.generation;
   }
 
   private delay(ms: number): Promise<void> {
@@ -286,26 +297,28 @@ export class ResearchSimulator {
 
   /* ── Main loop ── */
 
-  private async runLoop(): Promise<void> {
-    while (!this.aborted) {
+  private async runLoop(gen: number): Promise<void> {
+    while (this.alive(gen)) {
       try {
-        await this.runExperiment();
+        await this.runExperiment(gen);
+        if (!this.alive(gen)) return;
         await this.delay(2000); // Brief pause between experiments
       } catch (e) {
+        if (!this.alive(gen)) return;
         this.emit({ type: 'error', message: `Loop error: ${e}` });
         await this.delay(3000);
       }
     }
   }
 
-  private async runExperiment(): Promise<void> {
+  private async runExperiment(gen: number): Promise<void> {
     this.state.experimentCount++;
     const expId = this.state.experimentCount;
 
     // ── Phase 1: Data Ingest ──
     this.setStage('data_ingest');
     for (const src of DATA_SOURCES) {
-      if (this.aborted) return;
+      if (!this.alive(gen)) return;
       const tickers = Object.keys(this.state.allocations)
         .sort(() => Math.random() - 0.5)
         .slice(0, 3 + Math.floor(Math.random() * 4));
@@ -314,7 +327,7 @@ export class ResearchSimulator {
     }
 
     // ── Phase 2: Sentiment Analysis ──
-    if (this.aborted) return;
+    if (!this.alive(gen)) return;
     this.setStage('sentiment');
 
     const articleCount = 5 + Math.floor(Math.random() * 8);
@@ -327,7 +340,7 @@ export class ResearchSimulator {
 
     // FinBERT scoring
     for (let i = 0; i < Math.min(passCount, 4); i++) {
-      if (this.aborted) return;
+      if (!this.alive(gen)) return;
       const headline = pickRandom(HEADLINES);
       const score = clamp(gaussRandom(0, 0.5), -1, 1);
       const ticker = pickRandom(Object.keys(this.state.allocations));
@@ -341,7 +354,7 @@ export class ResearchSimulator {
 
     // Occasionally trigger Claude deep analysis
     if (Math.random() < 0.35) {
-      if (this.aborted) return;
+      if (!this.alive(gen)) return;
       const headline = pickRandom(HEADLINES);
       this.emit({
         type: 'sentiment', tier: 'claude_deep',
@@ -351,23 +364,23 @@ export class ResearchSimulator {
     }
 
     // ── Phase 3: Hypothesis ──
-    if (this.aborted) return;
+    if (!this.alive(gen)) return;
     this.setStage('hypothesis');
     this.emit({ type: 'hypothesis_start', experimentId: expId });
     await this.delay(400);
 
     let hypothesis: string;
     if (this.groqApiKey) {
-      hypothesis = await this.generateGroqHypothesis(expId);
+      hypothesis = await this.generateGroqHypothesis(expId, gen);
     } else {
-      hypothesis = await this.generateTemplateHypothesis();
+      hypothesis = await this.generateTemplateHypothesis(gen);
     }
 
     this.emit({ type: 'hypothesis_end', fullText: hypothesis });
     await this.delay(600);
 
     // ── Phase 4: Backtest ──
-    if (this.aborted) return;
+    if (!this.alive(gen)) return;
     this.setStage('backtest');
 
     const isCrash = Math.random() < 0.05;
@@ -375,7 +388,7 @@ export class ResearchSimulator {
     const metricNames = ['Sharpe', 'Sortino', 'Max Drawdown', 'Calmar', 'CAGR', 'Volatility', 'Win Rate', 'VaR 95%'];
 
     for (let i = 0; i <= steps; i++) {
-      if (this.aborted) return;
+      if (!this.alive(gen)) return;
       const pct = Math.round((i / steps) * 100);
       const elapsed = `${Math.floor(i * 5 / steps)}:${String(Math.floor((i * 300 / steps) % 60)).padStart(2, '0')}`;
       const metricLabel = i > 2 && i <= 2 + metricNames.length ? metricNames[i - 3] : undefined;
@@ -393,7 +406,7 @@ export class ResearchSimulator {
     await this.delay(500);
 
     // ── Phase 5: Decision ──
-    if (this.aborted) return;
+    if (!this.alive(gen)) return;
     this.setStage('decision');
 
     let status: 'KEPT' | 'DISCARDED' | 'CRASH';
@@ -429,7 +442,7 @@ export class ResearchSimulator {
 
   /* ── Hypothesis generation ── */
 
-  private async generateTemplateHypothesis(): Promise<string> {
+  private async generateTemplateHypothesis(gen: number): Promise<string> {
     const template = pickRandom(HYPOTHESIS_TEMPLATES);
     const from = 3 + Math.floor(Math.random() * 12);
     const delta = 1 + Math.floor(Math.random() * 4);
@@ -442,14 +455,14 @@ export class ResearchSimulator {
     // Simulate typewriter streaming
     const words = text.split(' ');
     for (let i = 0; i < words.length; i++) {
-      if (this.aborted) return text;
+      if (!this.alive(gen)) return text;
       this.emit({ type: 'hypothesis_chunk', text: (i > 0 ? ' ' : '') + words[i] });
       await this.delay(40 + Math.random() * 30);
     }
     return text;
   }
 
-  private async generateGroqHypothesis(expId: number): Promise<string> {
+  private async generateGroqHypothesis(expId: number, gen: number): Promise<string> {
     const allocStr = Object.entries(this.state.allocations)
       .map(([t, w]) => `${t}: ${(w * 100).toFixed(1)}%`)
       .join(', ');
@@ -485,7 +498,7 @@ Propose ONE specific weight change:`;
       });
 
       if (!resp.ok || !resp.body) {
-        return this.generateTemplateHypothesis();
+        return this.generateTemplateHypothesis(gen);
       }
 
       // Stream SSE response
@@ -495,7 +508,7 @@ Propose ONE specific weight change:`;
       let buffer = '';
 
       while (true) {
-        if (this.aborted) break;
+        if (!this.alive(gen)) break;
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -518,9 +531,9 @@ Propose ONE specific weight change:`;
           } catch { /* skip malformed chunk */ }
         }
       }
-      return full || await this.generateTemplateHypothesis();
+      return full || await this.generateTemplateHypothesis(gen);
     } catch {
-      return this.generateTemplateHypothesis();
+      return this.generateTemplateHypothesis(gen);
     }
   }
 
@@ -539,4 +552,22 @@ Propose ONE specific weight change:`;
       this.state.allocations[k] = this.state.allocations[k]! / total;
     }
   }
+}
+
+/* ── Module-level singleton ──
+   Survives component rebuilds, HMR, and DOM destruction.
+   The LiveResearcherPage reconnects to it on mount. */
+
+// eslint-disable-next-line no-var
+let _singleton: ResearchSimulator | null = null;
+
+/** Get or create the singleton simulator. */
+export function getResearchSimulator(onEvent: (event: ResearchEvent) => void): ResearchSimulator {
+  if (!_singleton) {
+    _singleton = new ResearchSimulator(onEvent);
+  } else {
+    // Reconnect the event callback to the new DOM
+    _singleton.setOnEvent(onEvent);
+  }
+  return _singleton;
 }

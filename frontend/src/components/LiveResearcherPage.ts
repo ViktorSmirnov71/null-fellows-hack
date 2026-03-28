@@ -7,9 +7,11 @@
 import * as d3 from 'd3';
 import { escapeHtml } from '@/utils/sanitize';
 import {
-  ResearchSimulator,
+  getResearchSimulator,
+  type ResearchSimulator,
   type ResearchEvent,
   type PipelineStage,
+  type ExperimentRecord,
 } from '@/services/research-simulator';
 
 /* ── Stage definitions ── */
@@ -50,12 +52,27 @@ export class LiveResearcherPage {
     this.element = document.createElement('div');
     this.element.className = 'lr-root';
 
-    this.sim = new ResearchSimulator(this.handleEvent.bind(this));
+    // Use singleton simulator — survives DOM rebuilds and HMR
+    this.sim = getResearchSimulator(this.handleEvent.bind(this));
 
     // Try to get Groq key
     this.loadGroqKey();
 
     this.buildDOM();
+
+    // Replay existing state into the fresh DOM
+    this.replayState();
+  }
+
+  /** Restore metrics/chart/list from existing simulator state (e.g. after HMR rebuild) */
+  private replayState(): void {
+    const st = this.sim.getState();
+    if (st.experimentCount === 0) return; // nothing to replay
+
+    this.log('system', `[RECONNECTED] Restored ${st.experimentCount} experiments (${st.kept} kept)`, 'lr-log-kept');
+    this.updateMetrics();
+    this.updateExperimentList();
+    this.renderSharpeChart();
   }
 
   /* ── Lifecycle ── */
@@ -472,7 +489,7 @@ export class LiveResearcherPage {
     // Show last 15, newest first
     const recent = exps.slice(-15).reverse();
 
-    this.expListEl.innerHTML = recent.map(e => {
+    this.expListEl.innerHTML = recent.map((e: ExperimentRecord) => {
       const statusClass = e.status.toLowerCase();
       const sharpeStr = isNaN(e.metrics.sharpe) ? 'CRASH' : e.metrics.sharpe.toFixed(3);
       const sharpeColor = e.status === 'KEPT' ? '#00e676' : e.status === 'CRASH' ? '#ff9800' : 'var(--text-dim)';
@@ -515,7 +532,7 @@ export class LiveResearcherPage {
       .domain([1, Math.max(exps.length, 5)])
       .range([0, iW]);
 
-    const allSharpe = exps.filter(e => !isNaN(e.metrics.sharpe)).map(e => e.metrics.sharpe);
+    const allSharpe = exps.filter((e: ExperimentRecord) => !isNaN(e.metrics.sharpe)).map((e: ExperimentRecord) => e.metrics.sharpe);
     const yMin = Math.min(0.5, ...allSharpe) - 0.05;
     const yMax = Math.max(1.5, ...allSharpe) + 0.05;
     const y = d3.scaleLinear().domain([yMin, yMax]).range([iH, 0]);
