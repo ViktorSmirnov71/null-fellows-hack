@@ -173,6 +173,9 @@ export const DEFAULT_PANELS: Record<string, PanelConfig> = {
   gccNews: { name: 'GCC Business News', enabled: true, priority: 2 },
   polymarket: { name: 'Predictions', enabled: true, priority: 2 },
   monitors: { name: 'My Monitors', enabled: true, priority: 2 },
+  portfolio: { name: 'Portfolio', enabled: true, priority: 1 },
+  'auto-allocator': { name: 'AutoAllocator', enabled: true, priority: 1 },
+  'risk-dashboard': { name: 'Risk Dashboard', enabled: true, priority: 1 },
 };
 
 // Finance-focused map layers

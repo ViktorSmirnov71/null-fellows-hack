@@ -81,3 +81,6 @@ export * from './CotPositioningPanel';
 export { HormuzPanel } from './HormuzPanel';
 export * from './DiseaseOutbreaksPanel';
 export * from './SocialVelocityPanel';
+export * from './PortfolioPanel';
+export * from './AutoAllocatorPanel';
+export * from './RiskDashboardPanel';

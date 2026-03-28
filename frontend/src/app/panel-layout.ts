@@ -67,6 +67,9 @@ import {
   CotPositioningPanel,
   DiseaseOutbreaksPanel,
   SocialVelocityPanel,
+  PortfolioPanel,
+  AutoAllocatorPanel,
+  RiskDashboardPanel,
 } from '@/components';
 import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
 import { focusInvestmentOnMap } from '@/services/investments-focus';
@@ -973,6 +976,9 @@ export class PanelLayoutManager implements AppModule {
       import('@/components/RegulationPanel').then(m => new m.RegulationPanel('ai-regulation')),
     );
 
+    this.createPanel('portfolio', () => new PortfolioPanel());
+    this.createPanel('auto-allocator', () => new AutoAllocatorPanel());
+    this.createPanel('risk-dashboard', () => new RiskDashboardPanel());
     this.createPanel('macro-signals', () => new MacroSignalsPanel());
     this.createPanel('fear-greed', () => new FearGreedPanel());
     this.createPanel('macro-tiles', () => new MacroTilesPanel());
